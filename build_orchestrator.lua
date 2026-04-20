@@ -62,10 +62,13 @@ local function copy_file(src, dest)
 end
 local process_manifest = {
 --    ["KERNELS/proc_megaknot.lua"] = "BUILD/KERNELS/proc_megaknot.lua",
-    ["sequence.lua"] = "BUILD/sequence.lua",
-    ["modules/nokia_snake.lua"] = "BUILD/modules/nokia_snake.lua",
     ["memory.lua"] = "BUILD/memory.lua",
+    ["sequence.lua"] = "BUILD/sequence.lua",
+
     ["main.lua"] = "BUILD/main.lua",
+    ["text.lua"] = "BUILD/text.lua",
+    ["modules/ncore_display.lua"] = "BUILD/modules/core_display.lua",
+    ["modules/nokia_snake.lua"] = "BUILD/modules/nokia_snake.lua",
 --    ["KERNELS/render_rasterize_dynamic.lua"] = "BUILD/KERNELS/render_rasterize_dynamic.lua",
 --    ["KERNELS/render_rasterize_baked.lua"] = "BUILD/KERNELS/render_rasterize_baked.lua",
 --    ["KERNELS/phys_kinematics.lua"] = "BUILD/KERNELS/phys_kinematics.lua",

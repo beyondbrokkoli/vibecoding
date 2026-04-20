@@ -1,12 +1,13 @@
 -- sequence.lua
 local Sequence = {
     Modules = {},
-    -- The ordered phases of the engine
     Phases = {
-        Init = {},    -- Claim memory, build initial geometry
-        Tick = {},    -- Physics, procedural generation movement
-        Cull = {},    -- Camera math
-        Raster = {}   -- Drawing to the software buffer
+        Init = {},
+        Tick = {},
+        KeyPressed = {},   -- NEW
+        MouseMoved = {},   -- NEW
+        Cull = {},
+        Raster = {}
     }
 }
 
@@ -21,9 +22,10 @@ function Sequence.LoadModule(filepath)
 
     table.insert(Sequence.Modules, mod)
     
-    -- Map the module's functions to the engine phases
     if type(mod.Init) == "function" then table.insert(Sequence.Phases.Init, mod.Init) end
     if type(mod.Tick) == "function" then table.insert(Sequence.Phases.Tick, mod.Tick) end
+    if type(mod.KeyPressed) == "function" then table.insert(Sequence.Phases.KeyPressed, mod.KeyPressed) end
+    if type(mod.MouseMoved) == "function" then table.insert(Sequence.Phases.MouseMoved, mod.MouseMoved) end
     if type(mod.Cull) == "function" then table.insert(Sequence.Phases.Cull, mod.Cull) end
     if type(mod.Raster) == "function" then table.insert(Sequence.Phases.Raster, mod.Raster) end
     
