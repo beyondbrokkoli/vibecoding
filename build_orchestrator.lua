@@ -1,0 +1,187 @@
+local function minify_lua(content)
+    local lines = {}
+    local d = "\45" .. "\45"
+    for line in content:gmatch("[^\r\n]+") do
+        local s = line:find(d, 1, true)
+        local clean_line = line
+        if s then
+            local prefix = line:sub(1, s - 1)
+            local _, quote_count = prefix:gsub('"', '"')
+            if quote_count % 2 == 0 then
+                clean_line = prefix
+            end
+        end
+        clean_line = clean_line:gsub("[ \t]+", " ")
+        clean_line = clean_line:match("^%s*(.-)%s*$")
+        if clean_line ~= "" then
+            table.insert(lines, clean_line)
+        end
+    end
+    if #lines == 0 then return "-- [EMPTY OR ALL COMMENTS] --" end
+    return table.concat(lines, "; ")
+end
+local function strip_to_target(input_path, output_path)
+    local infile = io.open(input_path, "r")
+    if not infile then return false end
+    local lines = {}
+    local d = "\45" .. "\45"
+    for line in infile:lines() do
+        local s = line:find(d, 1, true)
+        local clean_line = line
+        if s then
+            local prefix = line:sub(1, s - 1)
+            local _, quote_count = prefix:gsub('"', '"')
+            if quote_count % 2 == 0 then
+               clean_line = prefix
+            end
+        end
+        clean_line = clean_line:match("^%s*(.-)%s*$")
+        if clean_line ~= "" then
+            table.insert(lines, clean_line)
+        end
+    end
+    infile:close()
+    local outfile = io.open(output_path, "w")
+    if outfile then
+        outfile:write(table.concat(lines, "\n") .. "\n")
+        outfile:close()
+        return true
+    end
+    return false
+end
+local function copy_file(src, dest)
+    local f_in = io.open(src, "rb")
+    if not f_in then return false end
+    local content = f_in:read("*all")
+    f_in:close()
+    local f_out = io.open(dest, "wb")
+    if not f_out then return false end
+    f_out:write(content)
+    f_out:close()
+    return true
+end
+local process_manifest = {
+--    ["KERNELS/proc_megaknot.lua"] = "BUILD/KERNELS/proc_megaknot.lua",
+    ["sequence.lua"] = "BUILD/sequence.lua",
+    ["modules/nokia_snake.lua"] = "BUILD/modules/nokia_snake.lua",
+    ["memory.lua"] = "BUILD/memory.lua",
+    ["main.lua"] = "BUILD/main.lua",
+--    ["KERNELS/render_rasterize_dynamic.lua"] = "BUILD/KERNELS/render_rasterize_dynamic.lua",
+--    ["KERNELS/render_rasterize_baked.lua"] = "BUILD/KERNELS/render_rasterize_baked.lua",
+--    ["KERNELS/phys_kinematics.lua"] = "BUILD/KERNELS/phys_kinematics.lua",
+}
+local OLD_process_manifest = {
+    ["sys_memory.lua"] = "BUILD/sys_memory.lua",
+    ["sys_factory.lua"] = "BUILD/sys_factory.lua",
+    ["sys_sequence.lua"] = "BUILD/sys_sequence.lua",
+    ["KERNELS/camera_flight.lua"] = "BUILD/KERNELS/camera_flight.lua",
+    ["KERNELS/camera_cull.lua"] = "BUILD/KERNELS/camera_cull.lua",
+    ["KERNELS/render_rasterize_baked.lua"] = "BUILD/KERNELS/render_rasterize_baked.lua",
+    ["KERNELS/render_rasterize_dynamic.lua"] = "BUILD/KERNELS/render_rasterize_dynamic.lua",
+    ["KERNELS/phys_kinematics.lua"] = "BUILD/KERNELS/phys_kinematics.lua",
+    ["KERNELS/render_text_stamp.lua"] = "BUILD/KERNELS/render_text_stamp.lua",
+    ["ROUTINES/init_buffers.lua"] = "BUILD/ROUTINES/init_buffers.lua",
+    ["ROUTINES/init_slide_text.lua"] = "BUILD/ROUTINES/init_slide_text.lua",
+    ["ROUTINES/bake_lighting.lua"] = "BUILD/ROUTINES/bake_lighting.lua",
+    ["ROUTINES/bake_colors.lua"] = "BUILD/ROUTINES/bake_colors.lua",
+    ["MODULES/text_anchor.lua"] = "BUILD/MODULES/text_anchor.lua",
+    ["MODULES/text_lexer.lua"] = "BUILD/MODULES/text_lexer.lua",
+    ["MODULES/text_math.lua"] = "BUILD/MODULES/text_math.lua",
+    ["MODULES/text_baker.lua"] = "BUILD/MODULES/text_baker.lua",
+    ["MODULES/rasterize_triangle.lua"] = "BUILD/MODULES/rasterize_triangle.lua",
+    ["MODULES/state.lua"] = "BUILD/MODULES/state.lua",
+    ["MODULES/presentation.lua"] = "BUILD/MODULES/presentation.lua",
+    ["KERNELS/proc_treadmill.lua"] = "BUILD/KERNELS/proc_treadmill.lua",
+    ["MODULES/proc_gen.lua"] = "BUILD/MODULES/proc_gen.lua",
+    ["main.lua"] = "BUILD/main.lua",
+--    ["conf.lua"] = "BUILD/conf.lua",
+--    ["MODULES/bench.lua"] = "BUILD/MODULES/bench.lua",
+}
+local raw_manifest = {} -- now empty because we broke free from json chains
+local function setup_build_dir(dir)
+    local ok = os.execute("test -d " .. dir)
+    if ok == 0 or ok == true then
+        print("!!! Found existing " .. dir .. " directory. Press ENTER to purge and rebuild.")
+        io.read()
+        os.execute("rm -rf " .. dir)
+    end
+    return os.execute("mkdir -p " .. dir)
+end
+local function get_sorted_files()
+    local sorted = {}
+    local visited = {}
+
+    local function visit(file)
+        if visited[file] then return end
+        visited[file] = true
+
+        local f = io.open(file, "r")
+        if f then
+            local content = f:read("*all")
+            f:close()
+            for dep_match in content:gmatch('require%s*%(?%s*["\'](.-)["\']%s*%)?') do
+
+                -- NEW: Convert Lua's module dot notation to file path slashes!
+                -- e.g., "MODULES.presentation" -> "MODULES/presentation"
+                local dep_name = dep_match:gsub("%.", "/")
+
+                if not dep_name:find("%.lua$") then
+                    dep_name = dep_name .. ".lua"
+                end
+                if process_manifest[dep_name] then
+                    visit(dep_name)
+                end
+            end
+        end
+        table.insert(sorted, file)
+    end
+
+    for file in pairs(process_manifest) do visit(file) end
+    return sorted
+end
+local function OLD_get_sorted_files()
+    local sorted = {}
+    local visited = {}
+    local function visit(file)
+        if visited[file] then return end
+        visited[file] = true
+        local f = io.open(file, "r")
+        if f then
+            local content = f:read("*all")
+            f:close()
+            for dep_match in content:gmatch('require%s*%(?%s*["\'](.-)["\']%s*%)?') do
+                local dep_name = dep_match
+                if not dep_name:find("%.lua$") then
+                    dep_name = dep_name .. ".lua"
+                end
+                if process_manifest[dep_name] then
+                    visit(dep_name)
+                end
+            end
+        end
+        table.insert(sorted, file)
+    end
+    for file in pairs(process_manifest) do visit(file) end
+    return sorted
+end
+if not setup_build_dir("BUILD") then os.exit(1) end
+if not setup_build_dir("BUILD/KERNELS") then os.exit(1) end
+if not setup_build_dir("BUILD/MODULES") then os.exit(1) end
+if not setup_build_dir("BUILD/ROUTINES") then os.exit(1) end
+if not setup_build_dir("BUILD/core") then os.exit(1) end
+print("--- MOUNTING TO BUILD/ ---")
+for src, dest in pairs(process_manifest) do
+    if strip_to_target(src, dest) then print("  |- (Stripped) " .. src) end
+end
+for src, dest in pairs(raw_manifest) do
+    if copy_file(src, dest) then print("  |- (Raw)      " .. src) end
+end
+print("\n--- AI SNAPSHOT ---")
+local order = get_sorted_files()
+for _, src in ipairs(order) do
+    local f = io.open(src, "r")
+    if f then
+        print("@@@ FILE: " .. src .. " @@@\n" .. minify_lua(f:read("*all")))
+        f:close()
+    end
+end
