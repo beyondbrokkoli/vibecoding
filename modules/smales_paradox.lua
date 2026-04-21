@@ -19,8 +19,10 @@ return function(
     local sphere_yaw = 0
     local sphere_pitch = 0
 
-    local LATITUDES = 40
-    local LONGITUDES = 40
+    -- local LATITUDES = 40
+    -- local LONGITUDES = 40
+    local LATITUDES = 100
+    local LONGITUDES = 100
     local VCOUNT = (LATITUDES + 1) * (LONGITUDES + 1)
     local TCOUNT = LATITUDES * LONGITUDES * 2 -- PURIFIED: No double faces needed!
 
