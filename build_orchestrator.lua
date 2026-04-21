@@ -61,12 +61,12 @@ local function copy_file(src, dest)
     return true
 end
 local process_manifest = {
---    ["memory.lua"] = "BUILD/memory.lua",
---    ["sequence.lua"] = "BUILD/sequence.lua",
+    ["memory.lua"] = "BUILD/memory.lua",
+    ["sequence.lua"] = "BUILD/sequence.lua",
     ["main.lua"] = "BUILD/main.lua",
 --    ["text.lua"] = "BUILD/text.lua",
---    ["render_mesh.lua"] = "BUILD/render_mesh.lua",
---    ["modules/camera.lua"] = "BUILD/modules/camera.lua",
+    ["render_mesh_twotone.lua"] = "BUILD/render_mesh_twotone.lua",
+    ["modules/camera.lua"] = "BUILD/modules/camera.lua",
 --    ["modules/megaknot.lua"] = "BUILD/modules/megaknot.lua",
     ["modules/nokia_snake.lua"] = "BUILD/modules/nokia_snake.lua",
 --    ["modules/donuts.lua"] = "BUILD/modules/donuts.lua",
