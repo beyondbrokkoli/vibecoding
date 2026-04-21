@@ -17,7 +17,7 @@ function love.load()
         Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid,
         Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor
     )
-    Sequence.LoadModule("modules.donuts", 
+    Sequence.LoadModule("modules.donuts",
         Memory, MainCamera, UniverseCage,
         Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_Yaw, Obj_Pitch,
         Obj_VelX, Obj_VelY, Obj_VelZ, Obj_RotSpeedYaw, Obj_RotSpeedPitch,
@@ -30,9 +30,10 @@ function love.load()
         BoundBox_FWX, BoundBox_FWY, BoundBox_FWZ, BoundBox_RTX, BoundBox_RTY, BoundBox_RTZ, BoundBox_UPX, BoundBox_UPY, BoundBox_UPZ, BoundBox_Mode
     )
     -- If you convert Text to this format, you bind it here!
-    Sequence.LoadModule("modules.text", Memory, MainCamera, Obj_X, Obj_Y, Obj_Z)
+    -- Sequence.LoadModule("modules.text", Memory, MainCamera, Obj_X, Obj_Y, Obj_Z)
 
     Sequence.RunPhase("Init")
+    love.mouse.setRelativeMode(true)
 end
 
 function love.update(dt)
@@ -43,17 +44,17 @@ end
 function love.draw()
     ffi.fill(ScreenPtr, CANVAS_W * CANVAS_H * 4, 0)
     ffi.fill(ZBuffer, CANVAS_W * CANVAS_H * 4, 0x7F)
-    
+
     Sequence.RunPhase("Cull", MainCamera)
     Sequence.RunPhase("Raster", CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
-    
+
     ScreenImage:replacePixels(ScreenBuffer)
-    
+
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.setBlendMode("replace")
     love.graphics.draw(ScreenImage, 0, 0)
     love.graphics.setBlendMode("alpha")
-    
+
     love.graphics.setColor(0, 1, 0, 1)
     love.graphics.print("FPS: " .. love.timer.getFPS(), 20, 20)
 end
