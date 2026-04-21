@@ -1,12 +1,8 @@
--- ========================================================================
--- modules/megaknot.lua
--- The Ultimate Benchmark: 240,000 Triangles in a single object.
--- ========================================================================
 local bit = require("bit")
 local pi, cos, sin = math.pi, math.cos, math.sin
 local floor, sqrt, abs = math.floor, math.sqrt, math.abs
 
-local RasterizeTriangle = require("rasterize")
+local RenderMeshFactory = require("render_mesh")
 
 return function(
     Memory, MainCamera,
@@ -19,18 +15,24 @@ return function(
 )
     local Megaknot = {}
     local my_obj_start
+    
+    local DrawMesh = RenderMeshFactory(
+        Obj_X, Obj_Y, Obj_Z, Obj_Radius,
+        Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
+        Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount,
+        Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid,
+        Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor
+    )
 
     function Megaknot.Init()
         my_obj_start, _ = Memory.ClaimObjects(1)
         local id = my_obj_start
-
-        local cx, cy, cz = 0, 4000, 0 -- Place it dead center, above the snake orbit
+        local cx, cy, cz = 0, 4000, 0
         local scale = 1500
         local tubeRadius = 400
         local p, q = 4, 9
         local segments, sides = 800, 150
-        local baseColor = 0xFFFF00FF -- Hot Magenta
-
+        local baseColor = 0xFFFF00FF
         local vCount, tCount = segments * sides, segments * sides * 2
         local vStart, tStart = Memory.ClaimGeometry(vCount, tCount)
 
@@ -39,11 +41,9 @@ return function(
         Obj_RotSpeedYaw[id] = 0.8
         Obj_RotSpeedPitch[id] = -0.4
         Obj_Radius[id] = scale * 3
-        
         Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id] = 0, 0, 1
         Obj_RTX[id], Obj_RTY[id], Obj_RTZ[id] = 1, 0, 0
         Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id] = 0, 1, 0
-
         Obj_VertStart[id], Obj_VertCount[id] = vStart, vCount
         Obj_TriStart[id], Obj_TriCount[id] = tStart, tCount
 
@@ -53,7 +53,6 @@ return function(
             return r * cos(q * theta), r * sin(p * theta), r * sin(q * theta)
         end
 
-        -- 1. Calculate Frenet-Serret Frames and Vertices
         for i = 0, segments - 1 do
             local u = i / segments
             local p1 = {getKnotPos(u)}
@@ -81,7 +80,6 @@ return function(
             end
         end
 
-        -- 2. Stitch the Triangles
         local tIdx = tStart
         for i = 0, segments - 1 do
             local next_i = (i + 1) % segments
@@ -90,7 +88,6 @@ return function(
                 local a, b_idx = vStart + i * sides + j, vStart + next_i * sides + j
                 local c, d = vStart + next_i * sides + next_j, vStart + i * sides + next_j
 
-                -- Checkerboard styling written directly to BakedColor
                 local col = ((i + j) % 2 == 0) and baseColor or 0xFF444444
                 Tri_V1[tIdx], Tri_V2[tIdx], Tri_V3[tIdx] = a, c, b_idx
                 Tri_BakedColor[tIdx] = col; tIdx = tIdx + 1
@@ -102,8 +99,6 @@ return function(
 
     function Megaknot.Tick(dt)
         local id = my_obj_start
-        
-        -- Simple local Euler rotation (No need to invoke the whole physics engine for one object)
         local y_val = Obj_Yaw[id] + Obj_RotSpeedYaw[id] * dt
         local p_val = Obj_Pitch[id] + Obj_RotSpeedPitch[id] * dt
         Obj_Yaw[id], Obj_Pitch[id] = y_val, p_val
@@ -118,60 +113,7 @@ return function(
     end
 
     function Megaknot.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
-        local cpx, cpy, cpz = MainCamera.x, MainCamera.y, MainCamera.z
-        local cfw_x, cfw_y, cfw_z = MainCamera.fwx, MainCamera.fwy, MainCamera.fwz
-        local crt_x, crt_z = MainCamera.rtx, MainCamera.rtz
-        local cup_x, cup_y, cup_z = MainCamera.upx, MainCamera.upy, MainCamera.upz
-        local cam_fov = MainCamera.fov
-        local HALF_W, HALF_H = CANVAS_W * 0.5, CANVAS_H * 0.5
-
-        local id = my_obj_start
-        local r = Obj_Radius[id]
-        local ox, oy, oz = Obj_X[id], Obj_Y[id], Obj_Z[id]
-
-        local cz_center = (ox-cpx)*cfw_x + (oy-cpy)*cfw_y + (oz-cpz)*cfw_z
-        if cz_center + r < 0.1 then return end
-
-        local rx, rz = Obj_RTX[id], Obj_RTZ[id]
-        local ux, uy, uz = Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id]
-        local fx, fy, fz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
-        local vStart, vCount = Obj_VertStart[id], Obj_VertCount[id]
-
-        for i = 0, vCount - 1 do
-            local idx = vStart + i
-            local lvx, lvy, lvz = Vert_LX[idx], Vert_LY[idx], Vert_LZ[idx]
-            local wx = ox + lvx*rx + lvy*ux + lvz*fx
-            local wy = oy + lvy*uy + lvz*fy
-            local wz = oz + lvx*rz + lvy*uz + lvz*fz
-            
-            local vdx, vdy, vdz = wx-cpx, wy-cpy, wz-cpz
-            local cz = vdx*cfw_x + vdy*cfw_y + vdz*cfw_z
-            
-            if cz < 0.1 then Vert_Valid[idx] = false else
-                local f = cam_fov / cz
-                Vert_PX[idx] = HALF_W + (vdx*crt_x + vdz*crt_z) * f
-                Vert_PY[idx] = HALF_H + (vdx*cup_x + vdy*cup_y + vdz*cup_z) * f
-                Vert_PZ[idx] = cz * 1.004
-                Vert_Valid[idx] = true
-            end
-        end
-
-        local tStart, tCount = Obj_TriStart[id], Obj_TriCount[id]
-        for i = 0, tCount - 1 do
-            local idx = tStart + i
-            local i1, i2, i3 = Tri_V1[idx], Tri_V2[idx], Tri_V3[idx]
-            
-            if Vert_Valid[i1] and Vert_Valid[i2] and Vert_Valid[i3] then
-                local px1, py1, pz1 = Vert_PX[i1], Vert_PY[i1], Vert_PZ[i1]
-                local px2, py2, pz2 = Vert_PX[i2], Vert_PY[i2], Vert_PZ[i2]
-                local px3, py3, pz3 = Vert_PX[i3], Vert_PY[i3], Vert_PZ[i3]
-                
-                -- Backface culling
-                if (px2-px1)*(py3-py1) - (py2-py1)*(px3-px1) < 0 then
-                    RasterizeTriangle(px1,py1,pz1, px2,py2,pz2, px3,py3,pz3, Tri_BakedColor[idx], CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
-                end
-            end
-        end
+        DrawMesh(my_obj_start, my_obj_start, MainCamera, CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
     end
 
     return Megaknot
