@@ -14,12 +14,21 @@ return function(MainCamera)
         MainCamera.upz = -MainCamera.fwy * MainCamera.rtx
     end
 
+    --function CameraModule.Init()
+        --MainCamera.x, MainCamera.y, MainCamera.z = 0, 0, -10000
+        --MainCamera.yaw, MainCamera.pitch = 0, 0.3
+        --UpdateBasis()
+    --end
     function CameraModule.Init()
-        MainCamera.x, MainCamera.y, MainCamera.z = 0, 0, -10000
-        MainCamera.yaw, MainCamera.pitch = 0, 0.3
+        -- [THE CINEMATIC SPAWN]
+        -- Placed offset from the Sun vector to reveal perfect Lambertian shadows
+        MainCamera.x, MainCamera.y, MainCamera.z = -12000, 3000, 12000
+
+        -- Yaw 2.35 radians mathematically points the lens straight back at (0, 3000, 0)
+        MainCamera.yaw, MainCamera.pitch = 2.35, 0.0
+
         UpdateBasis()
     end
-
     function CameraModule.Tick(dt)
         local s = 2000 * dt
         if love.keyboard.isDown("w") then MainCamera.x, MainCamera.y, MainCamera.z = MainCamera.x + MainCamera.fwx * s, MainCamera.y + MainCamera.fwy * s, MainCamera.z + MainCamera.fwz * s end
