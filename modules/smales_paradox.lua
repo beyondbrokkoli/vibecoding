@@ -1,11 +1,11 @@
 local bit = require("bit")
 local math_sin, math_cos, math_pi = math.sin, math.cos, math.pi
 
-local RenderMeshFactory = require("render_mesh_twotone")( ... )
+local RenderMeshTwoToneFactory = require("render_mesh_twotone")
+
 return function(
     Memory, MainCamera,
-    Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_Yaw, Obj_Pitch,
-    Obj_RotSpeedYaw, Obj_RotSpeedPitch,
+    Obj_X, Obj_Y, Obj_Z, Obj_Radius,
     Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
     Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount,
     Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid,
@@ -14,12 +14,17 @@ return function(
     local Paradox = {}
     local my_obj_start
     local time_alive = 0
+    
+    -- Local variables for rotation so we don't need FFI arrays!
+    local sphere_yaw = 0
+    local sphere_pitch = 0
 
     local LATITUDES = 40
     local LONGITUDES = 40
     local VCOUNT = (LATITUDES + 1) * (LONGITUDES + 1)
-    local TCOUNT = LATITUDES * LONGITUDES * 2 -- No more double faces!
-    local DrawMesh = RenderMeshFactory(
+    local TCOUNT = LATITUDES * LONGITUDES * 2 -- PURIFIED: No double faces needed!
+
+    local DrawMesh = RenderMeshTwoToneFactory(
         Obj_X, Obj_Y, Obj_Z, Obj_Radius,
         Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
         Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount,
@@ -34,9 +39,6 @@ return function(
         local vStart, tStart = Memory.ClaimGeometry(VCOUNT, TCOUNT)
 
         Obj_X[id], Obj_Y[id], Obj_Z[id] = 0, 3000, 0
-        Obj_Yaw[id], Obj_Pitch[id] = 0, 0
-        Obj_RotSpeedYaw[id] = 0.5
-        Obj_RotSpeedPitch[id] = 0.2
         Obj_Radius[id] = 7000
 
         Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id] = 0, 0, 1
@@ -48,6 +50,7 @@ return function(
 
         local tIdx = tStart
 
+        -- Bake it pure Gold. The Two-Tone pipeline will handle the Purple inside.
         local col_gold = bit.bor(0xFF000000, bit.lshift(0, 16), bit.lshift(170, 8), 255)
 
         for i = 0, LATITUDES - 1 do
@@ -57,7 +60,6 @@ return function(
                 local c = vStart + ((i + 1) * (LONGITUDES + 1)) + j + 1
                 local d = vStart + ((i + 1) * (LONGITUDES + 1)) + j
 
-                -- JUST OUTSIDE FACES (Gold, CCW Winding)
                 Tri_V1[tIdx], Tri_V2[tIdx], Tri_V3[tIdx] = a, d, c; Tri_BakedColor[tIdx] = col_gold; tIdx = tIdx + 1
                 Tri_V1[tIdx], Tri_V2[tIdx], Tri_V3[tIdx] = a, c, b; Tri_BakedColor[tIdx] = col_gold; tIdx = tIdx + 1
             end
@@ -68,12 +70,12 @@ return function(
         time_alive = time_alive + dt
         local id = my_obj_start
 
-        local y_val = Obj_Yaw[id] + Obj_RotSpeedYaw[id] * dt
-        local p_val = Obj_Pitch[id] + Obj_RotSpeedPitch[id] * dt
-        Obj_Yaw[id], Obj_Pitch[id] = y_val, p_val
+        -- Apply local rotation
+        sphere_yaw = sphere_yaw + 0.5 * dt
+        sphere_pitch = sphere_pitch + 0.2 * dt
 
-        local cy, sy = math_cos(y_val), math_sin(y_val)
-        local cp, sp = math_cos(p_val), math_sin(p_val)
+        local cy, sy = math_cos(sphere_yaw), math_sin(sphere_yaw)
+        local cp, sp = math_cos(sphere_pitch), math_sin(sphere_pitch)
         Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id] = sy * cp, sp, cy * cp
         Obj_RTX[id], Obj_RTY[id], Obj_RTZ[id] = cy, 0, -sy
         Obj_UPX[id] = Obj_FWY[id] * Obj_RTZ[id]
@@ -82,8 +84,8 @@ return function(
 
         -- THE EVERSION DEFORMATION MATH
         local t = time_alive * 0.8
-        local eversion = math_cos(t) -- Pushes the poles through the center
-        local bulge = math_sin(t)    -- Expands the equator to avoid the sharp crease
+        local eversion = math_cos(t) 
+        local bulge = math_sin(t)    
 
         local vStart = Obj_VertStart[id]
         local idx = vStart
@@ -106,7 +108,6 @@ return function(
                 local twist = math_sin(theta * 2.0)
                 local r_corrugate = r_base * bulge * waves * twist * 1.2
 
-                -- Inject dynamic vertex data back into the SoA arrays
                 Vert_LX[idx] = nx * r_main + nx * r_corrugate
                 Vert_LY[idx] = ny * r_main + (math_cos(theta * 3.0) * r_base * bulge * 0.5)
                 Vert_LZ[idx] = nz * r_main + nz * r_corrugate

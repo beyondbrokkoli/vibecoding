@@ -1,7 +1,7 @@
 -- ========================================================================
--- render_mesh.lua
+-- render_mesh_twotone.lua
 -- Pure 3D-to-2D Projection & Culling Pipeline.
--- Slop-Gate Closure Edition.
+-- Dynamic Face-Color Swapping & Depth Fog Included.
 -- ========================================================================
 local max, min, floor, abs = math.max, math.min, math.floor, math.abs
 local RasterizeTriangle = require("rasterize")
@@ -13,7 +13,6 @@ return function(
     Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid,
     Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor
 )
-    -- Returns the compiled projection loop
     return function(start_id, end_id, MainCamera, CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
         local cpx, cpy, cpz = MainCamera.x, MainCamera.y, MainCamera.z
         local cfw_x, cfw_y, cfw_z = MainCamera.fwx, MainCamera.fwy, MainCamera.fwz
@@ -66,18 +65,26 @@ return function(
                     local px2, py2, pz2 = Vert_PX[i2], Vert_PY[i2], Vert_PZ[i2]
                     local px3, py3, pz3 = Vert_PX[i3], Vert_PY[i3], Vert_PZ[i3]
 
-                    -- Calculate the winding order (Cross Product)
+                    -- [SURGICAL PATCH]: Dynamic Backface Color Swapping
                     local cross = (px2-px1)*(py3-py1) - (py2-py1)*(px3-px1)
+                    local orig_col = Tri_BakedColor[idx]
 
-                    local final_color = Tri_BakedColor[idx] -- Default to Gold (Frontface)
-
-                    -- If the cross product is positive, we are looking at the BACK of the triangle!
                     if cross >= 0 then
-                        -- Swap the color to Purple on the fly!
-                        final_color = bit.bor(0xFF000000, bit.lshift(255, 16), bit.lshift(0, 8), 170)
+                        -- We are looking at the inside of the sphere! Swap to Purple!
+                        orig_col = bit.bor(0xFF000000, bit.lshift(255, 16), bit.lshift(0, 8), 170)
                     end
 
-                    -- Rasterize EVERYTHING, just passing our dynamically chosen color
+                    -- Calculate Depth Fog
+                    local z_avg = (pz1 + pz2 + pz3) * 0.333
+                    local fog = max(0, min(1, 1.2 - (z_avg / 16000.0)))
+                    
+                    local b = floor(bit.band(bit.rshift(orig_col, 16), 0xFF) * fog)
+                    local g = floor(bit.band(bit.rshift(orig_col, 8), 0xFF) * fog)
+                    local r = floor(bit.band(orig_col, 0xFF) * fog)
+                    
+                    local final_color = bit.bor(0xFF000000, bit.lshift(b, 16), bit.lshift(g, 8), r)
+
+                    -- Rasterize without culling
                     RasterizeTriangle(px1,py1,pz1, px2,py2,pz2, px3,py3,pz3, final_color, CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
                 end
             end
