@@ -1,4 +1,5 @@
-local max, min, floor, ceil = math.max, math.min, math.floor, math.ceil
+local max, min, floor, abs = math.max, math.min, math.floor, math.abs
+
 return function (x1,y1,z1, x2,y2,z2, x3,y3,z3, shadedColor, CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
     if y1 > y2 then x1,x2 = x2,x1
         y1,y2 = y2,y1
