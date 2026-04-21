@@ -59,8 +59,9 @@ AllocateSoA("int[?]", MAX_OBJS, {"Visible_IDs"})
 
 -- 4. Vertex Data (Local, Camera, and Projected Points)
 AllocateSoA("float[?]", MAX_VERTS, {
-    "Vert_LX", "Vert_LY", "Vert_LZ", 
-    "Vert_CX", "Vert_CY", "Vert_CZ", 
+    "Vert_LX", "Vert_LY", "Vert_LZ",
+    "Vert_WX", "Vert_WY", "Vert_WZ", -- <<< ADD THESE THREE
+    "Vert_CX", "Vert_CY", "Vert_CZ",
     "Vert_PX", "Vert_PY", "Vert_PZ"
 })
 AllocateSoA("bool[?]", MAX_VERTS, {"Vert_Valid"})

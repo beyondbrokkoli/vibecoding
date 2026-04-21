@@ -1,7 +1,7 @@
 local bit = require("bit")
 local math_sin, math_cos, math_pi = math.sin, math.cos, math.pi
 
-local RenderMeshTwoToneFactory = require("render_mesh_twotone")
+local RenderMeshTwoToneFactory = require("render_simd_twotone")
 
 return function(
     Memory, MainCamera,

@@ -1,3 +1,16 @@
+local function compile_simd_libraries()
+    print("--- COMPILING SIMD KERNELS ---")
+    
+    -- 1. Compile for Linux (.so) using standard GCC
+    local linux_cmd = "gcc -O3 -mavx -mavx2 -mfma -shared -fPIC vibemath.c -o BUILD/libvibemath.so"
+    print("  |- Building Linux shared object...")
+    os.execute(linux_cmd)
+
+    -- 2. Compile for Windows (.dll) using MinGW Cross-Compiler!
+    local win_cmd = "x86_64-w64-mingw32-gcc -O3 -mavx -mavx2 -mfma -shared -fPIC vibemath.c -o BUILD/vibemath.dll"
+    print("  |- Cross-compiling Windows DLL...")
+    os.execute(win_cmd)
+end
 local function minify_lua(content)
     local lines = {}
     local d = "\45" .. "\45"
@@ -115,36 +128,14 @@ local function get_sorted_files()
     for file in pairs(process_manifest) do visit(file) end
     return sorted
 end
-local function OLD_get_sorted_files()
-    local sorted = {}
-    local visited = {}
-    local function visit(file)
-        if visited[file] then return end
-        visited[file] = true
-        local f = io.open(file, "r")
-        if f then
-            local content = f:read("*all")
-            f:close()
-            for dep_match in content:gmatch('require%s*%(?%s*["\'](.-)["\']%s*%)?') do
-                local dep_name = dep_match
-                if not dep_name:find("%.lua$") then
-                    dep_name = dep_name .. ".lua"
-                end
-                if process_manifest[dep_name] then
-                    visit(dep_name)
-                end
-            end
-        end
-        table.insert(sorted, file)
-    end
-    for file in pairs(process_manifest) do visit(file) end
-    return sorted
-end
+
 if not setup_build_dir("BUILD") then os.exit(1) end
 if not setup_build_dir("BUILD/KERNELS") then os.exit(1) end
 if not setup_build_dir("BUILD/MODULES") then os.exit(1) end
 if not setup_build_dir("BUILD/ROUTINES") then os.exit(1) end
 if not setup_build_dir("BUILD/core") then os.exit(1) end
+print("--- COMPILING SIMD LIBRARY ---")
+compile_simd_libraries()
 print("--- MOUNTING TO BUILD/ ---")
 for src, dest in pairs(process_manifest) do
     if strip_to_target(src, dest) then print("  |- (Stripped) " .. src) end
