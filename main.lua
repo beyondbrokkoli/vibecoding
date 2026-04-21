@@ -19,7 +19,7 @@ function love.load()
     ZBuffer = ffi.new("float[?]", CANVAS_W * CANVAS_H)
 
     -- Bind Modules through the Slop Gate
-    Sequence.LoadModule("modules.camera_orbit", MainCamera)
+    Sequence.LoadModule("modules.camera", MainCamera)
     -- ... (Load your snake and donuts here as before) ...
     Sequence.LoadModule("modules.nokia_snake",
         Memory, MainCamera,
@@ -51,7 +51,7 @@ function love.load()
         Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor
     )
     -- If you convert Text to this format, you bind it here!
-    -- Sequence.LoadModule("modules.text", Memory, MainCamera, Obj_X, Obj_Y, Obj_Z)
+    Sequence.LoadModule("modules.text", Memory, MainCamera, Obj_X, Obj_Y, Obj_Z)
     Sequence.RunPhase("Init")
     love.mouse.setRelativeMode(true)
 end
