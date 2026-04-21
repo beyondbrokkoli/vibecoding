@@ -75,3 +75,20 @@ function BENCH.End(label)
     if duration < BenchData[id].min then BenchData[id].min = duration end
     if duration > BenchData[id].max then BenchData[id].max = duration end
 end
+function BENCH.PrintAndReset(label)
+    local id = registry_map[label]
+    if not id or BenchData[id].count == 0 then return end
+    
+    local d = BenchData[id]
+    local avg_ms = (d.total / d.count) * 1000
+    local min_ms = d.min * 1000
+    local max_ms = d.max * 1000
+    
+    print(string.format("[BENCH: %s] Avg: %5.2f ms | Min: %5.2f ms | Max: %5.2f ms", label, avg_ms, min_ms, max_ms))
+    
+    -- Reset for the next batch so we don't carry old lag spikes
+    d.count = 0
+    d.total = 0
+    d.min = 9999999.0
+    d.max = 0.0
+end
