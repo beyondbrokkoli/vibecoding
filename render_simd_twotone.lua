@@ -5,18 +5,7 @@
 -- ========================================================================
 local ffi = require("ffi")
 
-ffi.cdef[[
-    void simd_transform_vertices(
-        int count,
-        float* lx, float* ly, float* lz,
-        float* wx, float* wy, float* wz,
-        float ox, float oy, float oz,
-        float rx, float ry, float rz,
-        float ux, float uy, float uz,
-        float fx, float fy, float fz
-    );
-]]
-local VibeMath = ffi.load(love.filesystem.getSourceBaseDirectory() .. "/libvibemath.so")
+local VibeMath = require("load_simd")
 
 local max, min, floor, abs, sqrt = math.max, math.min, math.floor, math.abs, math.sqrt
 local RasterizeTriangle = require("rasterize")
