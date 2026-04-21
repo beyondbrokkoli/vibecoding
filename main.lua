@@ -19,7 +19,7 @@ function love.load()
     ZBuffer = ffi.new("float[?]", CANVAS_W * CANVAS_H)
 
     -- 1. The Camera
-    Sequence.LoadModule("modules.camera", MainCamera)
+    Sequence.LoadModule("modules.camera_orbit", MainCamera)
 
     -- 2. The Procedural Geometry (Snake & Crystal Forge)
     --Sequence.LoadModule("modules.nokia_snake",

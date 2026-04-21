@@ -11,7 +11,7 @@ return function(MainCamera)
     -- ORBIT SETTINGS
     local orbit_angle = 0
     local orbit_speed = 0.3      -- Radians per second
-    local orbit_radius = 9000    -- Distance from the target
+    local orbit_radius = 12000    -- Distance from the target
     
     -- TARGET COORDINATES (Center of the Megaknot/Snake area)
     local target_x = 0
