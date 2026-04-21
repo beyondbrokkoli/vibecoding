@@ -4,13 +4,33 @@ local ffi = require("ffi")
 local Sequence = require("sequence")
 
 function love.load()
-    -- Dynamically load all module files
-    local files = love.filesystem.getDirectoryItems("modules")
-    for _, file in ipairs(files) do
-        if file:sub(-4) == ".lua" then
-            Sequence.LoadModule("modules." .. file:sub(1, -5))
-        end
-    end
+    -- Load the display (which will hook into MainCamera and setup buffers)
+    Sequence.LoadModule("modules.core_display")
+
+    -- THE SLOP GATE: Explicit Dependency Injection
+    -- Nokia Snake asks for 30 specific pointers. If it's not in this list, it crashes.
+    Sequence.LoadModule("modules.nokia_snake",
+        Memory, MainCamera,
+        Obj_X, Obj_Y, Obj_Z, Obj_Radius,
+        Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
+        Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount,
+        Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid,
+        Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor
+    )
+    Sequence.LoadModule("modules.donuts", 
+        Memory, MainCamera, UniverseCage,
+        Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_Yaw, Obj_Pitch,
+        Obj_VelX, Obj_VelY, Obj_VelZ, Obj_RotSpeedYaw, Obj_RotSpeedPitch,
+        Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
+        Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount,
+        Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid,
+        Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor,
+        Count_BoundSphere, BoundSphere_X, BoundSphere_Y, BoundSphere_Z, BoundSphere_RSq, BoundSphere_Mode,
+        Count_BoundBox, BoundBox_X, BoundBox_Y, BoundBox_Z, BoundBox_HW, BoundBox_HH, BoundBox_HT,
+        BoundBox_FWX, BoundBox_FWY, BoundBox_FWZ, BoundBox_RTX, BoundBox_RTY, BoundBox_RTZ, BoundBox_UPX, BoundBox_UPY, BoundBox_UPZ, BoundBox_Mode
+    )
+    -- If you convert Text to this format, you bind it here!
+    -- Sequence.LoadModule("modules.text", Memory, MainCamera, Obj_X, Obj_Y, Obj_Z)
 
     Sequence.RunPhase("Init")
 end
@@ -21,15 +41,12 @@ function love.update(dt)
 end
 
 function love.draw()
-    -- 1. Pre-Raster: Clear the FFI Buffers
     ffi.fill(ScreenPtr, CANVAS_W * CANVAS_H * 4, 0)
     ffi.fill(ZBuffer, CANVAS_W * CANVAS_H * 4, 0x7F)
     
-    -- 2. Execute Math
     Sequence.RunPhase("Cull", MainCamera)
     Sequence.RunPhase("Raster", CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
     
-    -- 3. Commit to Hardware
     ScreenImage:replacePixels(ScreenBuffer)
     
     love.graphics.setColor(1, 1, 1, 1)
@@ -37,7 +54,6 @@ function love.draw()
     love.graphics.draw(ScreenImage, 0, 0)
     love.graphics.setBlendMode("alpha")
     
-    -- Basic HUD
     love.graphics.setColor(0, 1, 0, 1)
     love.graphics.print("FPS: " .. love.timer.getFPS(), 20, 20)
 end
@@ -45,7 +61,6 @@ end
 function love.keypressed(key)
     if key == "escape" then love.event.quit() end
     if key == "j" then love.mouse.setRelativeMode(not love.mouse.getRelativeMode()) end
-    
     Sequence.RunPhase("KeyPressed", key)
 end
 

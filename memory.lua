@@ -92,11 +92,19 @@ ffi.cdef[[
         float maxX, maxY, maxZ;
         bool isActive;
     } GlobalCage;
+
+    typedef struct {
+        float x, y, z;
+        float yaw, pitch;
+        float fov;
+        float fwx, fwy, fwz;
+        float rtx, rty, rtz;
+        float upx, upy, upz;
+    } CameraState;
 ]]
 
--- The Universe Cage keeps physics objects from flying to infinity
 UniverseCage = ffi.new("GlobalCage", {-15000, -4000, -15000, 15000, 15000, 15000, true})
-
+MainCamera = ffi.new("CameraState") -- Officially part of the Motherboard now!
 
 -- ========================================================================
 -- [5] THE SLICE CHECKOUT SYSTEM (The Engine's Core Protection)

@@ -2,20 +2,41 @@
 local ffi = require("ffi")
 
 -- Define the C-struct for the camera locally within the module that owns it
-ffi.cdef[[
-    typedef struct {
-        float x, y, z;
-        float yaw, pitch;
-        float fov;
-        float fwx, fwy, fwz;
-        float rtx, rty, rtz;
-        float upx, upy, upz;
-    } CameraState;
-]]
+--ffi.cdef[[
+--    typedef struct {
+--        float x, y, z;
+--        float yaw, pitch;
+--        float fov;
+--        float fwx, fwy, fwz;
+--        float rtx, rty, rtz;
+--        float upx, upy, upz;
+--    } CameraState;
+--]]
 
 local DisplayModule = {}
-
 function DisplayModule.Init()
+    local pixel_w, pixel_h = love.graphics.getPixelDimensions()
+    
+    _G.CANVAS_W, _G.CANVAS_H = pixel_w, pixel_h
+    _G.HALF_W, _G.HALF_H = pixel_w * 0.5, pixel_h * 0.5
+
+    _G.ScreenBuffer = love.image.newImageData(CANVAS_W, CANVAS_H)
+    _G.ScreenImage = love.graphics.newImage(ScreenBuffer)
+    _G.ScreenPtr = ffi.cast("uint32_t*", ScreenBuffer:getPointer())
+
+    _G.ZBuffer = ffi.new("float[?]", CANVAS_W * CANVAS_H)
+    
+    -- 2. DELETE THIS LINE! Do not overwrite the global pointer!
+    -- _G.MainCamera = ffi.new("CameraState")
+    
+    -- 3. Now it just configures the pointer that main.lua created!
+    MainCamera.fov = (CANVAS_W / 800) * 600
+    MainCamera.x, MainCamera.y, MainCamera.z = 0, 0, -1000
+    MainCamera.yaw, MainCamera.pitch = 0, 0
+    
+    DisplayModule.UpdateCameraBasis()
+end
+function DisplayModule.OLD_Init()
     local pixel_w, pixel_h = love.graphics.getPixelDimensions()
     
     -- Inject globals for other modules (like culling/rasterizing)

@@ -4,20 +4,30 @@ local Sequence = {
     Phases = {
         Init = {},
         Tick = {},
-        KeyPressed = {},   -- NEW
-        MouseMoved = {},   -- NEW
+        KeyPressed = {},
+        MouseMoved = {},
         Cull = {},
         Raster = {}
     }
 }
 
-function Sequence.LoadModule(filepath)
+-- Notice the '...' here for Dependency Injection!
+function Sequence.LoadModule(filepath, ...)
     package.loaded[filepath] = nil
-    local success, mod = pcall(require, filepath)
+    local success, result = pcall(require, filepath)
     
     if not success then
-        print("[FATAL] Module Error: " .. filepath .. "\n" .. tostring(mod))
+        print("[FATAL] Module Error: " .. filepath .. "\n" .. tostring(result))
         return false
+    end
+
+    local mod
+    if type(result) == "function" then
+        -- THE SLOP GATE: Inject the arguments into the closure factory
+        mod = result(...)
+    else
+        -- Fallback for basic modules that just return a table
+        mod = result
     end
 
     table.insert(Sequence.Modules, mod)
