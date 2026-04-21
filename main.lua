@@ -42,7 +42,7 @@ function love.load()
         BoundBox_FWX, BoundBox_FWY, BoundBox_FWZ, BoundBox_RTX, BoundBox_RTY, BoundBox_RTZ, BoundBox_UPX, BoundBox_UPY, BoundBox_UPZ, BoundBox_Mode
     )
     -- If you convert Text to this format, you bind it here!
-    -- Sequence.LoadModule("modules.text", Memory, MainCamera, Obj_X, Obj_Y, Obj_Z)
+    Sequence.LoadModule("modules.text", Memory, MainCamera, Obj_X, Obj_Y, Obj_Z)
     Sequence.RunPhase("Init")
     love.mouse.setRelativeMode(true)
 end

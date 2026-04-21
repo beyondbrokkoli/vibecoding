@@ -183,49 +183,44 @@ function TextModule.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
         -- Cull if it's behind the camera
         if depth < 10 then goto continue end
 
+        -- Replace the math section in TextModule.Raster with this:
+
         -- 2. Calculate Screen Center (cx, cy)
         local f = cam_fov / depth
         local cx = HALF_W + (vdx*crt_x + vdz*crt_z) * f
         local cy = HALF_H + (vdx*cup_x + vdy*cup_y + vdz*cup_z) * f
 
-        -- 3. Calculate Scale (Perspective relative to bake depth)
-        --local draw_scale = f / cache.opt_scale
+        -- 3. FORCE PERFECT PIXEL MAPPING (The AAA Waypoint Trick)
+        -- We completely ignore perspective scaling for the image size!
+        local draw_scale = 1.0 
+        cx = floor(cx + 0.5)
+        cy = floor(cy + 0.5)
 
-        -- OPTIMIZATION: If scale is very close to 1.0, snap it to 1.0 for perfect pixel mapping
-        --if abs(draw_scale - 1.0) < 0.005 then
-            draw_scale = 1.0
-            cx = floor(cx + 0.5)
-            cy = floor(cy + 0.5)
-        --end
-
-        -- 4. THE HYPER-OPTIMIZED UNADULTERATED FFI BLIT LOOP
+        -- 4. The Blit Loop Setup
         local ptr, tw, th = cache.ptr, cache.w, cache.h
-        local sw, sh = floor(tw * draw_scale), floor(th * draw_scale)
+        local sw, sh = tw, th -- Because draw_scale is 1.0, sw/sh are exactly tw/th!
         if sw <= 0 or sh <= 0 then goto continue end
 
         local startX, startY = floor(cx - sw * 0.5), floor(cy - sh * 0.5)
         local clipX, clipY = max(0, startX), max(0, startY)
         local endX, endY = min(CANVAS_W - 1, startX + sw - 1), min(CANVAS_H - 1, startY + sh - 1)
         
-        local inv_scale = 1.0 / draw_scale
-        local z_threshold = depth - 5 -- Pull it slightly forward so it doesn't z-fight its own anchor
-        
-        -- Default full opacity for now
+        -- Pull it slightly forward so it doesn't z-fight its own anchor
+        local z_threshold = depth - 5 
         local global_a256 = 255 
 
         for y = clipY, endY do
-            local ty = floor((y - startY) * inv_scale)
+            local ty = y - startY -- No more inv_scale multiplication! Just direct integer subtraction.
             if ty >= 0 and ty < th then
                 local screenOff = y * CANVAS_W
                 local buffOff = ty * tw
                 for x = clipX, endX do
-                    local tx = floor((x - startX) * inv_scale)
+                    local tx = x - startX -- Direct integer mapping!
                     if tx >= 0 and tx < tw then
                         local px = ptr[buffOff + tx]
-                        -- Check if text pixel is not transparent
                         if px >= 0x01000000 then
-                            -- THE MAGIC: Depth check against the 3D world!
                             if ZBuffer[screenOff + x] >= z_threshold then
+                                -- ... (Color blending math stays exactly the same) ...
                                 local pa = bit.rshift(px, 24)
                                 local final_a = bit.rshift(pa * global_a256, 8)
                                 if final_a > 0 then
