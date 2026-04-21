@@ -1,7 +1,4 @@
--- ========================================================================
 -- modules/camera.lua
--- Pure Slop-Gate Camera Controller.
--- ========================================================================
 local max, min, cos, sin = math.max, math.min, math.cos, math.sin
 
 return function(MainCamera)
@@ -31,7 +28,13 @@ return function(MainCamera)
         if love.keyboard.isDown("d") then MainCamera.x, MainCamera.z = MainCamera.x + MainCamera.rtx * s, MainCamera.z + MainCamera.rtz * s end
         if love.keyboard.isDown("e") then MainCamera.y = MainCamera.y - s end
         if love.keyboard.isDown("q") then MainCamera.y = MainCamera.y + s end
-        
+        local rotSpeed = 2.5 * dt
+        if love.keyboard.isDown("left") then MainCamera.yaw = MainCamera.yaw - rotSpeed end
+        if love.keyboard.isDown("right") then MainCamera.yaw = MainCamera.yaw + rotSpeed end
+        if love.keyboard.isDown("up") then MainCamera.pitch = MainCamera.pitch - rotSpeed end
+        if love.keyboard.isDown("down") then MainCamera.pitch = MainCamera.pitch + rotSpeed end
+
+        MainCamera.pitch = math.max(-1.56, math.min(1.56, MainCamera.pitch))
         UpdateBasis()
     end
 

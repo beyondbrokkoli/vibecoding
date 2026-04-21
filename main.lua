@@ -51,7 +51,7 @@ function love.load()
         Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor
     )
     -- If you convert Text to this format, you bind it here!
-    Sequence.LoadModule("modules.text", Memory, MainCamera, Obj_X, Obj_Y, Obj_Z)
+    -- Sequence.LoadModule("modules.text", Memory, MainCamera, Obj_X, Obj_Y, Obj_Z)
     Sequence.RunPhase("Init")
     love.mouse.setRelativeMode(true)
 end
