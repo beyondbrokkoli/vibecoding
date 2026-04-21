@@ -90,7 +90,7 @@ return function(
     function Swarm.Tick(dt)
         time_alive = time_alive + dt
         
-        -- Chaos Theory Parameters (Morphing slightly over time)
+        -- Chaos Theory Parameters
         local sigma = 10.0
         local rho = 28.0 + math_sin(time_alive * 0.5) * 5.0
         local beta = 8.0 / 3.0
@@ -98,8 +98,11 @@ return function(
         -- The Space Mapping
         local scale = 150.0 
         local center_y = 8000
-        local center_z = 25.0 * scale -- Push it into the center of the attractor lobes
-        local speed = 2.0 -- CHANGED: Removed the '* dt' so physics.lua handles it cleanly!
+        local center_z = 25.0 * scale 
+        
+        -- TUNING: Lowered base speed and added a hard Terminal Velocity limit
+        local speed = 0.8 
+        local MAX_SPEED = 2500.0 
 
         for i = 0, SWARM_COUNT - 1 do
             local id = my_obj_start + i
@@ -114,17 +117,30 @@ return function(
             local dy = x * (rho - z) - y
             local dz = x * y - beta * z
 
-            -- Inject intent directly into velocity arrays!
-            Obj_VelX[id] = dx * speed * scale
-            Obj_VelY[id] = dy * speed * scale
-            Obj_VelZ[id] = dz * speed * scale
+            -- Calculate intended raw velocity
+            local vx = dx * speed * scale
+            local vy = dy * speed * scale
+            local vz = dz * speed * scale
             
-            -- Make the shards spin wildly based on chaotic pressure
-            Obj_RotSpeedYaw[id] = dx * 0.05
-            Obj_RotSpeedPitch[id] = dy * 0.05
+            -- THE SPEED CLAMP (Vector Normalization)
+            local vLen = math.sqrt(vx*vx + vy*vy + vz*vz)
+            if vLen > MAX_SPEED then
+                local factor = MAX_SPEED / vLen
+                vx = vx * factor
+                vy = vy * factor
+                vz = vz * factor
+            end
+
+            -- Inject clamped intent into the physics arrays
+            Obj_VelX[id] = vx
+            Obj_VelY[id] = vy
+            Obj_VelZ[id] = vz
+            
+            -- Spin speed scales cleanly with the clamped velocity
+            Obj_RotSpeedYaw[id] = vx * 0.001
+            Obj_RotSpeedPitch[id] = vy * 0.001
         end
 
-        -- Run physics without the cage constraint
         RunPhysics(my_obj_start, my_obj_start + SWARM_COUNT - 1, dt)
     end
 
