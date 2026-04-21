@@ -64,9 +64,8 @@ local process_manifest = {
 --    ["KERNELS/proc_megaknot.lua"] = "BUILD/KERNELS/proc_megaknot.lua",
     ["memory.lua"] = "BUILD/memory.lua",
     ["sequence.lua"] = "BUILD/sequence.lua",
-
     ["main.lua"] = "BUILD/main.lua",
-    ["text.lua"] = "BUILD/text.lua",
+--    ["text.lua"] = "BUILD/text.lua",
     ["modules/ncore_display.lua"] = "BUILD/modules/core_display.lua",
     ["modules/nokia_snake.lua"] = "BUILD/modules/nokia_snake.lua",
 --    ["KERNELS/render_rasterize_dynamic.lua"] = "BUILD/KERNELS/render_rasterize_dynamic.lua",
