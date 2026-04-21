@@ -73,8 +73,8 @@ return function(
         local id = my_obj_start
 
         -- Apply local rotation
-        sphere_yaw = sphere_yaw + 0.5 * dt
-        sphere_pitch = sphere_pitch + 0.2 * dt
+        sphere_yaw = sphere_yaw + 0.5 * dt/8
+        sphere_pitch = sphere_pitch + 0.2 * dt/8
 
         local cy, sy = math_cos(sphere_yaw), math_sin(sphere_yaw)
         local cp, sp = math_cos(sphere_pitch), math_sin(sphere_pitch)
@@ -85,7 +85,7 @@ return function(
         Obj_UPZ[id] = -Obj_FWY[id] * Obj_RTX[id]
 
         -- THE EVERSION DEFORMATION MATH
-        local t = time_alive * 0.8
+        local t = time_alive * 0.05
         local eversion = math_cos(t) 
         local bulge = math_sin(t)    
 
