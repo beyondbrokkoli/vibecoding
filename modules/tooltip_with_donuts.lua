@@ -1,16 +1,15 @@
 local bit = require("bit")
 local math_cos, math_sin, math_pi = math.cos, math.sin, math.pi
-local floor, sqrt, abs, max = math.floor, math.sqrt, math.abs, math.max
+local floor, sqrt = math.floor, math.sqrt
 
 local PhysicsFactory = require("physics")
 local RenderMeshFactory = require("render_mesh")
 
 return function(
-    Memory, MainCamera, UniverseCage, TextModule,
+    Memory, MainCamera, UniverseCage, TextModule, -- INJECTED TEXT MODULE
     Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_Yaw, Obj_Pitch,
     Obj_VelX, Obj_VelY, Obj_VelZ, Obj_RotSpeedYaw, Obj_RotSpeedPitch,
     Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
-    Obj_Freq, Obj_Phase,
     Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount,
     Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid,
     Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor,
@@ -23,7 +22,9 @@ return function(
     local MAX_DONUTS = 500
     local current_donut_count = 0
 
-    local global_field_freq = 2.0
+    -- Tracking Variables for Lore Element
+    local target_donut_id = nil
+    local target_text_id = nil
 
     local RunPhysics = PhysicsFactory(
         Obj_X, Obj_Y, Obj_Z, Obj_VelX, Obj_VelY, Obj_VelZ,
@@ -42,7 +43,6 @@ return function(
         Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid,
         Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor
     )
-
     local function SpawnDonut(cx, cy, cz, mainRadius, tubeRadius, segments, sides, baseColor)
         if current_donut_count >= MAX_DONUTS then return nil end
         local id = my_obj_start + current_donut_count
@@ -56,10 +56,6 @@ return function(
         Obj_Radius[id] = mainRadius + tubeRadius
         Obj_VertStart[id], Obj_VertCount[id] = vStart, vCount
         Obj_TriStart[id], Obj_TriCount[id] = tStart, tCount
-        
-        -- Assign a clean, whole-number natural frequency between 1.0 and 5.0
-        Obj_Freq[id] = math.random(1, 5) * 1.0
-        Obj_Phase[id] = math.random() * math_pi * 2
 
         local r, g, b = bit.band(bit.rshift(baseColor, 16), 0xFF), bit.band(bit.rshift(baseColor, 8), 0xFF), bit.band(baseColor, 0xFF)
         local altColor = bit.bor(0xFF000000, bit.lshift(floor(r * 0.6), 16), bit.lshift(floor(g * 0.6), 8), floor(b * 0.6))
@@ -93,70 +89,70 @@ return function(
 
     function Donuts.Init()
         my_obj_start, _ = Memory.ClaimObjects(MAX_DONUTS)
-        if TextModule then
-            -- STATIC INSTRUCTIONS ONLY! No lag!
-            TextModule.Spawn(0, 4500, 0, "# SPATIAL TUNER\n~ \27[36mKEYS [ ] TO TUNE\n| \27[33mOBSERVE KINEMATICS", 3000, 0, 0, true)
-        end
     end
 
     function Donuts.KeyPressed(key)
-        -- TUNING MECHANIC: Prints directly to the terminal!
-        if key == "]" then 
-            global_field_freq = math.min(5.0, global_field_freq + 1.0) 
-            print("[TUNER] Field Frequency: " .. global_field_freq .. " Hz")
-        end
-        if key == "[" then 
-            global_field_freq = math.max(1.0, global_field_freq - 1.0) 
-            print("[TUNER] Field Frequency: " .. global_field_freq .. " Hz")
-        end
-
         if key == "r" then
-            for i = 1, 3 do
-                local px = MainCamera.x + MainCamera.fwx * 800 + (math.random()-0.5)*500
-                local py = MainCamera.y + MainCamera.fwy * 800 + (math.random()-0.5)*500
-                local pz = MainCamera.z + MainCamera.fwz * 800 + (math.random()-0.5)*500
+            -- Standard Random Spawning
+            for i = 1, 5 do
+                local spawn_dist = 400 + (math.random() * 600)
+                local px = MainCamera.x + MainCamera.fwx * spawn_dist
+                local py = MainCamera.y + MainCamera.fwy * spawn_dist
+                local pz = MainCamera.z + MainCamera.fwz * spawn_dist
 
-                local random_color = bit.bor(0xFF000000, bit.lshift(math.random(50,255), 16), bit.lshift(math.random(50,255), 8), math.random(50,255))
-                local id = SpawnDonut(px, py, pz, math.random(60, 120), 25, 24, 12, random_color)
+                local r_maj, r_min = math.random(50, 150), math.random(10, 40)
+                local random_color = bit.bor(0xFF000000, bit.lshift(math.random(100,255), 16), bit.lshift(math.random(100,255), 8), math.random(100,255))
+
+                local id = SpawnDonut(px, py, pz, r_maj, r_min, 24, 12, random_color)
                 if id then
-                    Obj_VelX[id] = MainCamera.fwx * 1000
-                    Obj_VelY[id] = MainCamera.fwy * 1000
-                    Obj_VelZ[id] = MainCamera.fwz * 1000
+                    local power = math.random(1500, 3500)
+                    Obj_VelX[id], Obj_VelY[id], Obj_VelZ[id] = (MainCamera.fwx * power) + (math.random() - 0.5) * 500, (MainCamera.fwy * power) + (math.random() - 0.5) * 500, (MainCamera.fwz * power) + (math.random() - 0.5) * 500
+                    Obj_RotSpeedYaw[id], Obj_RotSpeedPitch[id] = (math.random() - 0.5) * 6.0, (math.random() - 0.5) * 6.0
                 end
+            end
+        end
+
+        -- NEW TARGETING INTERACTION
+        if key == "t" then
+            local px = MainCamera.x + MainCamera.fwx * 800
+            local py = MainCamera.y + MainCamera.fwy * 800
+            local pz = MainCamera.z + MainCamera.fwz * 800
+
+            -- Create a distinctly visible "Golden Torus" (ABGR format)
+            local gold_color = bit.bor(0xFF000000, bit.lshift(0, 16), bit.lshift(200, 8), 255)
+            target_donut_id = SpawnDonut(px, py, pz, 160, 40, 32, 16, gold_color)
+            
+            if target_donut_id and TextModule then
+                Obj_VelX[target_donut_id] = (MainCamera.fwx * 1500) 
+                Obj_VelY[target_donut_id] = (MainCamera.fwy * 1500)
+                Obj_VelZ[target_donut_id] = (MainCamera.fwz * 1500)
+                Obj_RotSpeedYaw[target_donut_id] = 2.0
+                
+                -- Spawn the Lore Text UI (Offsets: Shift it Right and Up on screen so it doesn't block the Donut)
+                local lore_text = "# ANOMALY DETECTED\n~ \27[33mCLASS-V GOLDEN TORUS\n| \27[36mSCANNING...| \27[32mCONTAINED"
+                target_text_id = TextModule.Spawn(px, py, pz, lore_text, 1200, 150, -100, true)
             end
         end
     end
 
     function Donuts.Tick(dt)
-        for i = 0, current_donut_count - 1 do
-            local id = my_obj_start + i
-            
-            -- Advance the phase over time
-            Obj_Phase[id] = Obj_Phase[id] + (Obj_Freq[id] * dt * 3.0)
-
-            -- Compare the Donut's hidden freq to your Global freq
-            if abs(Obj_Freq[id] - global_field_freq) < 0.1 then
-                -- RESONANT: Ignore Gravity, Float up and down smoothly!
-                Obj_VelY[id] = math_sin(Obj_Phase[id]) * 1500
-                Obj_VelX[id] = Obj_VelX[id] * 0.95 -- Damping so they don't fly away
-                Obj_VelZ[id] = Obj_VelZ[id] * 0.95
-                Obj_RotSpeedPitch[id] = 2.0
-            else
-                -- NON-RESONANT: Heavy Gravity, sink to the floor
-                Obj_VelY[id] = Obj_VelY[id] - (2500 * dt)
-                Obj_RotSpeedPitch[id] = Obj_RotSpeedPitch[id] * 0.95
-            end
-        end
-
         if current_donut_count > 0 then
             RunPhysics(my_obj_start, my_obj_start + current_donut_count - 1, dt)
+        end
+
+        -- SYNC TEXT TO DONUT
+        if target_donut_id and target_text_id and TextModule then
+            TextModule.UpdateAnchor(
+                target_text_id, 
+                Obj_X[target_donut_id], 
+                Obj_Y[target_donut_id], 
+                Obj_Z[target_donut_id]
+            )
         end
     end
 
     function Donuts.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
         if current_donut_count > 0 then
-            -- Notice there is no more color overwriting loop here! 
-            -- Fast and retains your beautiful colors.
             DrawMesh(my_obj_start, my_obj_start + current_donut_count - 1, MainCamera, CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
         end
     end

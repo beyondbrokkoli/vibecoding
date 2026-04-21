@@ -44,7 +44,8 @@ AllocateSoA("float[?]", MAX_OBJS, {
     "Obj_Yaw", "Obj_Pitch", "Obj_RotSpeedYaw", "Obj_RotSpeedPitch",
     "Obj_FWX", "Obj_FWY", "Obj_FWZ",
     "Obj_RTX", "Obj_RTY", "Obj_RTZ",
-    "Obj_UPX", "Obj_UPY", "Obj_UPZ"
+    "Obj_UPX", "Obj_UPY", "Obj_UPZ",
+    "Obj_Freq", "Obj_Phase" -- <<< NEW ARRAYS FOR RESONANCE
 })
 
 -- 2. Object Geometry Linking
