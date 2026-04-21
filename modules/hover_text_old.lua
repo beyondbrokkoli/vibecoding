@@ -4,19 +4,25 @@ local max, min, floor, abs = math.max, math.min, math.floor, math.abs
 
 local TextModule = {}
 
+-- ========================================================================
+-- [1] THE LOCAL SANDBOX & GC PROTECTION
+-- ========================================================================
 local my_obj_start, next_text_idx
 local MAX_TEXT_NODES = 256
-local TextCaches = {} 
+local TextCaches = {} -- Holds {ptr, w, h, _keepAlive, ox, oy}
 
 local ansi_to_love = {
-    ["30"] = {0.1, 0.1, 0.1}, 
-    ["31"] = {1, 0.2, 0.2},   
-    ["32"] = {0.2, 1, 0.2},   
-    ["33"] = {1, 0.8, 0.2},   
-    ["36"] = {0.2, 0.9, 0.9}, 
-    ["0"]  = {1, 1, 1}        -- Defaulting back to White for the dark background
+    ["30"] = {0.1, 0.1, 0.1}, -- Black/Dark Gray
+    ["31"] = {1, 0.2, 0.2},   -- Red
+    ["32"] = {0.2, 1, 0.2},   -- Green
+    ["33"] = {1, 1, 0.2},     -- Yellow
+    ["36"] = {0.2, 1, 1},     -- Cyan
+    ["0"]  = {0, 0, 0}        -- Defaulting to Black for bright backgrounds!
 }
 
+-- ========================================================================
+-- [2] THE STOLEN GOODIES (Lexer & Baker)
+-- ========================================================================
 local function ParseLine(rawText, fonts)
     if not rawText then return {} end
     local pipePos = rawText:find("|")
@@ -36,7 +42,7 @@ local function ParseLine(rawText, fonts)
     if cleanText:match("^#%s+") then cleanText = cleanText:gsub("^#%s+", ""); currentFont = fonts.head end
 
     local coloredTable, pureText = {}, ""
-    local currentColor, lastPos = {1, 1, 1, 1}, 1 
+    local currentColor, lastPos = {0, 0, 0, 1}, 1 -- Default to black text
 
     for startPos, colorCode, endPos in cleanText:gmatch("()\27%[([%d;]*)m()") do
         if startPos > lastPos then
@@ -44,7 +50,7 @@ local function ParseLine(rawText, fonts)
             table.insert(coloredTable, currentColor); table.insert(coloredTable, chunk)
             pureText = pureText .. chunk
         end
-        if colorCode == "0" or colorCode == "" then currentColor = {1, 1, 1, 1}
+        if colorCode == "0" or colorCode == "" then currentColor = {0, 0, 0, 1}
         elseif ansi_to_love[colorCode] then currentColor = {ansi_to_love[colorCode][1], ansi_to_love[colorCode][2], ansi_to_love[colorCode][3], 1} end
         lastPos = endPos
     end
@@ -53,7 +59,7 @@ local function ParseLine(rawText, fonts)
         table.insert(coloredTable, currentColor); table.insert(coloredTable, chunk)
         pureText = pureText .. chunk
     end
-    if #coloredTable == 0 then coloredTable = {{1, 1, 1, 1}, cleanText}; pureText = cleanText end
+    if #coloredTable == 0 then coloredTable = {{0, 0, 0, 1}, cleanText}; pureText = cleanText end
     return {{ text = cleanText, pureText = pureText, coloredTable = coloredTable, font = currentFont, align = currentAlign }}
 end
 
@@ -64,11 +70,10 @@ local function BakeText(contentStr, intended_depth, has_background)
 
     local virtW, virtH = 2048, 2048 
 
-    -- DRILL DOWN THE FONT SIZES FOR A SLEEKER LOOK
     local fonts = {
-        title = love.graphics.newFont(max(8, floor(50 * optimal_scale))),
-        head  = love.graphics.newFont(max(8, floor(35 * optimal_scale))),
-        body  = love.graphics.newFont(max(8, floor(20 * optimal_scale)))
+        title = love.graphics.newFont(max(8, floor(100 * optimal_scale))),
+        head  = love.graphics.newFont(max(8, floor(80 * optimal_scale))),
+        body  = love.graphics.newFont(max(8, floor(50 * optimal_scale)))
     }
 
     local giantCanvas = love.graphics.newCanvas(virtW, virtH)
@@ -79,8 +84,9 @@ local function BakeText(contentStr, intended_depth, has_background)
     local currentY = floor(virtH * 0.05)
     local paddingX = floor(virtW * 0.05)
     local maxTextWidth = virtW - (paddingX * 2)
-    local measuredWidth = 0 
+    local measuredWidth = 0 -- Track the actual used width
 
+    -- Baking the lines
     local lines = {}
     for s in contentStr:gmatch("[^\r\n]+") do table.insert(lines, s) end
 
@@ -110,6 +116,7 @@ local function BakeText(contentStr, intended_depth, has_background)
         end
     end
 
+    -- Dynamically crop to the EXACT bounds of the text for a tight HUD background
     local finalW = min(virtW, measuredWidth + (paddingX * 2))
     local finalH = min(virtH, currentY + floor(virtH * 0.05))
     
@@ -117,16 +124,17 @@ local function BakeText(contentStr, intended_depth, has_background)
     love.graphics.setCanvas(croppedCanvas)
     love.graphics.clear(0, 0, 0, 0)
     
-    -- THE NEW LORE AESTHETIC: Dark Glass Panel
+    -- Draw the Bright HUD Plate
     if has_background then
-        love.graphics.setColor(0.05, 0.05, 0.07, 0.85) -- Dark translucent gray
-        love.graphics.rectangle("fill", 0, 0, finalW, finalH, 6 * optimal_scale, 6 * optimal_scale)
-        
-        love.graphics.setLineWidth(max(1, 2 * optimal_scale))
-        love.graphics.setColor(0.2, 0.9, 0.9, 0.7) -- Ubisoft AC Cyan border
-        love.graphics.rectangle("line", 0, 0, finalW, finalH, 6 * optimal_scale, 6 * optimal_scale)
+        love.graphics.setColor(0.95, 0.95, 0.95, 0.85) -- Off-white, slightly transparent
+        love.graphics.rectangle("fill", 0, 0, finalW, finalH, 12 * optimal_scale, 12 * optimal_scale)
+        -- Optional: Add a crisp border
+        love.graphics.setLineWidth(2 * optimal_scale)
+        love.graphics.setColor(0.5, 1.0, 0.8, 0.9) -- Ubisoft Cyan Border
+        love.graphics.rectangle("line", 0, 0, finalW, finalH, 12 * optimal_scale, 12 * optimal_scale)
     end
 
+    -- Draw the text over the background
     love.graphics.setBlendMode("alpha", "premultiplied")
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.draw(giantCanvas, 0, 0)
@@ -144,6 +152,10 @@ local function BakeText(contentStr, intended_depth, has_background)
     }
 end
 
+-- ========================================================================
+-- [3] MODULE PUBLIC API (Spawning & GC)
+-- ========================================================================
+-- NEW: offsetX and offsetY allow 2D screen shifting away from the 3D anchor!
 function TextModule.Spawn(x, y, z, textContent, intended_depth, offsetX, offsetY, has_background)
     if next_text_idx > my_obj_start + MAX_TEXT_NODES then return end
     local id = next_text_idx
@@ -161,15 +173,15 @@ function TextModule.Spawn(x, y, z, textContent, intended_depth, offsetX, offsetY
     return id
 end
 
--- NEW: Allow other modules to puppet text nodes dynamically
-function TextModule.UpdateAnchor(id, x, y, z)
-    if not id or not TextCaches[id] then return end
-    Obj_X[id], Obj_Y[id], Obj_Z[id] = x, y, z
-end
-
+-- ========================================================================
+-- [4] ENGINE PHASES
+-- ========================================================================
 function TextModule.Init()
     my_obj_start, _ = Memory.ClaimObjects(MAX_TEXT_NODES)
     next_text_idx = my_obj_start
+
+    -- Test Spawn: Notice we are passing Screen Offsets and forcing the Background!
+    TextModule.Spawn(0, 0, 0, "# TARGET AQUIRED\n~ \27[31mWARNING: Z-Buffer Anomaly Detected.", 1000, 150, -100, true)
 end
 
 function TextModule.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
@@ -191,6 +203,7 @@ function TextModule.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
 
         local f = cam_fov / depth
         
+        -- Apply the 2D Screen Offsets here!
         local cx = HALF_W + (vdx*crt_x + vdz*crt_z) * f + cache.ox
         local cy = HALF_H + (vdx*cup_x + vdy*cup_y + vdz*cup_z) * f + cache.oy
 
@@ -219,6 +232,7 @@ function TextModule.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
                         local px = ptr[buffOff + tx]
                         if px >= 0x01000000 then
                             if ZBuffer[screenOff + x] >= z_threshold then
+                                -- THE TRUE ALPHA BLENDING FIX
                                 local src_a = bit.rshift(px, 24)
                                 local final_a = bit.rshift(src_a * global_a256, 8)
                                 
@@ -234,6 +248,7 @@ function TextModule.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
                                     
                                     local inv_a = 255 - final_a
                                     
+                                    -- Blend Source and Destination cleanly
                                     local r = bit.rshift(src_r * final_a + bg_r * inv_a, 8)
                                     local g = bit.rshift(src_g * final_a + bg_g * inv_a, 8)
                                     local b = bit.rshift(src_b * final_a + bg_b * inv_a, 8)
@@ -252,4 +267,3 @@ function TextModule.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
 end
 
 return TextModule
-
