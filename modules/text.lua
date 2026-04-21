@@ -189,14 +189,14 @@ function TextModule.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
         local cy = HALF_H + (vdx*cup_x + vdy*cup_y + vdz*cup_z) * f
 
         -- 3. Calculate Scale (Perspective relative to bake depth)
-        local draw_scale = f / cache.opt_scale
+        --local draw_scale = f / cache.opt_scale
 
         -- OPTIMIZATION: If scale is very close to 1.0, snap it to 1.0 for perfect pixel mapping
-        if abs(draw_scale - 1.0) < 0.005 then
+        --if abs(draw_scale - 1.0) < 0.005 then
             draw_scale = 1.0
             cx = floor(cx + 0.5)
             cy = floor(cy + 0.5)
-        end
+        --end
 
         -- 4. THE HYPER-OPTIMIZED UNADULTERATED FFI BLIT LOOP
         local ptr, tw, th = cache.ptr, cache.w, cache.h
