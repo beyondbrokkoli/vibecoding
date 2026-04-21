@@ -6,14 +6,14 @@ local TextModule = {}
 
 local my_obj_start, next_text_idx
 local MAX_TEXT_NODES = 256
-local TextCaches = {} 
+local TextCaches = {}
 
 local ansi_to_love = {
-    ["30"] = {0.1, 0.1, 0.1}, 
-    ["31"] = {1, 0.2, 0.2},   
-    ["32"] = {0.2, 1, 0.2},   
-    ["33"] = {1, 0.8, 0.2},   
-    ["36"] = {0.2, 0.9, 0.9}, 
+    ["30"] = {0.1, 0.1, 0.1},
+    ["31"] = {1, 0.2, 0.2},
+    ["32"] = {0.2, 1, 0.2},
+    ["33"] = {1, 0.8, 0.2},
+    ["36"] = {0.2, 0.9, 0.9},
     ["0"]  = {1, 1, 1}        -- Defaulting back to White for the dark background
 }
 
@@ -62,7 +62,7 @@ local function BakeText(contentStr, intended_depth, has_background)
     local optimal_scale = (MainCamera.fov / intended_depth)
     if optimal_scale ~= optimal_scale or optimal_scale == math.huge then optimal_scale = 1.0 end
 
-    local virtW, virtH = 2048, 2048 
+    local virtW, virtH = 2048, 2048
 
     -- DRILL DOWN THE FONT SIZES FOR A SLEEKER LOOK
     local fonts = {
@@ -95,13 +95,13 @@ local function BakeText(contentStr, intended_depth, has_background)
                 love.graphics.setFont(colData.font)
                 local xOffset = paddingX + ((colIdx - 1) * colWidth)
                 local colPrintWidth = colWidth - (numCols > 1 and floor(virtW * 0.02) or 0) + 4
-                
+
                 local width, wrappedLines = colData.font:getWrap(colData.pureText, colPrintWidth)
                 if width > measuredWidth then measuredWidth = width end
 
                 local colHeight = #wrappedLines * colData.font:getHeight()
                 if colHeight > maxRowHeight then maxRowHeight = colHeight end
-                
+
                 love.graphics.printf(colData.coloredTable, floor(xOffset - 2), floor(currentY), colPrintWidth, colData.align)
             end
             currentY = currentY + maxRowHeight + floor(virtH * 0.005)
@@ -112,16 +112,16 @@ local function BakeText(contentStr, intended_depth, has_background)
 
     local finalW = min(virtW, measuredWidth + (paddingX * 2))
     local finalH = min(virtH, currentY + floor(virtH * 0.05))
-    
+
     local croppedCanvas = love.graphics.newCanvas(finalW, finalH)
     love.graphics.setCanvas(croppedCanvas)
     love.graphics.clear(0, 0, 0, 0)
-    
+
     -- THE NEW LORE AESTHETIC: Dark Glass Panel
     if has_background then
         love.graphics.setColor(0.05, 0.05, 0.07, 0.85) -- Dark translucent gray
         love.graphics.rectangle("fill", 0, 0, finalW, finalH, 6 * optimal_scale, 6 * optimal_scale)
-        
+
         love.graphics.setLineWidth(max(1, 2 * optimal_scale))
         love.graphics.setColor(0.2, 0.9, 0.9, 0.7) -- Ubisoft AC Cyan border
         love.graphics.rectangle("line", 0, 0, finalW, finalH, 6 * optimal_scale, 6 * optimal_scale)
@@ -186,11 +186,11 @@ function TextModule.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
 
         local vdx, vdy, vdz = Obj_X[id] - cpx, Obj_Y[id] - cpy, Obj_Z[id] - cpz
         local depth = vdx*cfw_x + vdy*cfw_y + vdz*cfw_z
-        
+
         if depth < 10 then goto continue end
 
         local f = cam_fov / depth
-        
+
         local cx = HALF_W + (vdx*crt_x + vdz*crt_z) * f + cache.ox
         local cy = HALF_H + (vdx*cup_x + vdy*cup_y + vdz*cup_z) * f + cache.oy
 
@@ -198,30 +198,30 @@ function TextModule.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
         cy = floor(cy + 0.5)
 
         local ptr, tw, th = cache.ptr, cache.w, cache.h
-        local sw, sh = tw, th 
+        local sw, sh = tw, th
         if sw <= 0 or sh <= 0 then goto continue end
 
         local startX, startY = floor(cx - sw * 0.5), floor(cy - sh * 0.5)
         local clipX, clipY = max(0, startX), max(0, startY)
         local endX, endY = min(CANVAS_W - 1, startX + sw - 1), min(CANVAS_H - 1, startY + sh - 1)
-        
-        local z_threshold = depth - 5 
-        local global_a256 = 255 
+
+        local z_threshold = depth - 5
+        local global_a256 = 255
 
         for y = clipY, endY do
-            local ty = y - startY 
+            local ty = y - startY
             if ty >= 0 and ty < th then
                 local screenOff = y * CANVAS_W
                 local buffOff = ty * tw
                 for x = clipX, endX do
-                    local tx = x - startX 
+                    local tx = x - startX
                     if tx >= 0 and tx < tw then
                         local px = ptr[buffOff + tx]
                         if px >= 0x01000000 then
                             if ZBuffer[screenOff + x] >= z_threshold then
                                 local src_a = bit.rshift(px, 24)
                                 local final_a = bit.rshift(src_a * global_a256, 8)
-                                
+
                                 if final_a > 0 then
                                     local src_r = bit.band(bit.rshift(px, 16), 0xFF)
                                     local src_g = bit.band(bit.rshift(px, 8), 0xFF)
@@ -231,13 +231,13 @@ function TextModule.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
                                     local bg_r = bit.band(bit.rshift(bg, 16), 0xFF)
                                     local bg_g = bit.band(bit.rshift(bg, 8), 0xFF)
                                     local bg_b = bit.band(bg, 0xFF)
-                                    
+
                                     local inv_a = 255 - final_a
-                                    
+
                                     local r = bit.rshift(src_r * final_a + bg_r * inv_a, 8)
                                     local g = bit.rshift(src_g * final_a + bg_g * inv_a, 8)
                                     local b = bit.rshift(src_b * final_a + bg_b * inv_a, 8)
-                                    
+
                                     ScreenPtr[screenOff + x] = bit.bor(0xFF000000, bit.lshift(r, 16), bit.lshift(g, 8), b)
                                 end
                             end

@@ -15,7 +15,7 @@ return function(
 )
     local Megaknot = {}
     local my_obj_start
-    
+
     local DrawMesh = RenderMeshFactory(
         Obj_X, Obj_Y, Obj_Z, Obj_Radius,
         Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
@@ -27,11 +27,11 @@ return function(
     function Megaknot.Init()
         my_obj_start, _ = Memory.ClaimObjects(1)
         local id = my_obj_start
-        local cx, cy, cz = -2000*4, 4000*2, 2000*2
+        local cx, cy, cz = 0, 0, 0
         local scale = 1500
         local tubeRadius = 400
         local p, q = 4, 9
-        local segments, sides = 200, 35
+        local segments, sides = 1200, 250
         local baseColor = 0xFFFF00FF
         local vCount, tCount = segments * sides, segments * sides * 2
         local vStart, tStart = Memory.ClaimGeometry(vCount, tCount)

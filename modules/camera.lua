@@ -15,7 +15,7 @@ return function(MainCamera)
     end
 
     function CameraModule.Init()
-        MainCamera.x, MainCamera.y, MainCamera.z = 0, 0, -1000
+        MainCamera.x, MainCamera.y, MainCamera.z = 0, 0, -8000
         MainCamera.yaw, MainCamera.pitch = 0, 0
         UpdateBasis()
     end

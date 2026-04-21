@@ -57,7 +57,7 @@ return function(
                 local dx, dy, dz = px - sx, py - sy, pz - sz
                 local distSq = dx*dx + dy*dy + dz*dz
                 local rSq = BoundSphere_RSq[s]
-                
+
                 if mode == 3 then -- SOLID
                     if distSq < rSq then
                         local dist = sqrt(distSq)
