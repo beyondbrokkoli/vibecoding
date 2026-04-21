@@ -19,7 +19,7 @@ function love.load()
     ZBuffer = ffi.new("float[?]", CANVAS_W * CANVAS_H)
 
     -- Bind Modules through the Slop Gate
-    Sequence.LoadModule("modules.camera", MainCamera)
+    Sequence.LoadModule("modules.camera_orbit", MainCamera)
     -- ... (Load your snake and donuts here as before) ...
     Sequence.LoadModule("modules.nokia_snake",
         Memory, MainCamera,

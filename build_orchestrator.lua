@@ -61,47 +61,18 @@ local function copy_file(src, dest)
     return true
 end
 local process_manifest = {
---    ["KERNELS/proc_megaknot.lua"] = "BUILD/KERNELS/proc_megaknot.lua",
     ["memory.lua"] = "BUILD/memory.lua",
     ["sequence.lua"] = "BUILD/sequence.lua",
     ["main.lua"] = "BUILD/main.lua",
---    ["text.lua"] = "BUILD/text.lua",
+    ["text.lua"] = "BUILD/text.lua",
     ["render_mesh.lua"] = "BUILD/render_mesh.lua",
     ["modules/camera.lua"] = "BUILD/modules/camera.lua",
     ["modules/megaknot.lua"] = "BUILD/modules/megaknot.lua",
     ["modules/nokia_snake.lua"] = "BUILD/modules/nokia_snake.lua",
     ["modules/donuts.lua"] = "BUILD/modules/donuts.lua",
---    ["KERNELS/render_rasterize_dynamic.lua"] = "BUILD/KERNELS/render_rasterize_dynamic.lua",
---    ["KERNELS/render_rasterize_baked.lua"] = "BUILD/KERNELS/render_rasterize_baked.lua",
---    ["KERNELS/phys_kinematics.lua"] = "BUILD/KERNELS/phys_kinematics.lua",
+    ["physics.lua"] = "BUILD/physics.lua",
 }
-local OLD_process_manifest = {
-    ["sys_memory.lua"] = "BUILD/sys_memory.lua",
-    ["sys_factory.lua"] = "BUILD/sys_factory.lua",
-    ["sys_sequence.lua"] = "BUILD/sys_sequence.lua",
-    ["KERNELS/camera_flight.lua"] = "BUILD/KERNELS/camera_flight.lua",
-    ["KERNELS/camera_cull.lua"] = "BUILD/KERNELS/camera_cull.lua",
-    ["KERNELS/render_rasterize_baked.lua"] = "BUILD/KERNELS/render_rasterize_baked.lua",
-    ["KERNELS/render_rasterize_dynamic.lua"] = "BUILD/KERNELS/render_rasterize_dynamic.lua",
-    ["KERNELS/phys_kinematics.lua"] = "BUILD/KERNELS/phys_kinematics.lua",
-    ["KERNELS/render_text_stamp.lua"] = "BUILD/KERNELS/render_text_stamp.lua",
-    ["ROUTINES/init_buffers.lua"] = "BUILD/ROUTINES/init_buffers.lua",
-    ["ROUTINES/init_slide_text.lua"] = "BUILD/ROUTINES/init_slide_text.lua",
-    ["ROUTINES/bake_lighting.lua"] = "BUILD/ROUTINES/bake_lighting.lua",
-    ["ROUTINES/bake_colors.lua"] = "BUILD/ROUTINES/bake_colors.lua",
-    ["MODULES/text_anchor.lua"] = "BUILD/MODULES/text_anchor.lua",
-    ["MODULES/text_lexer.lua"] = "BUILD/MODULES/text_lexer.lua",
-    ["MODULES/text_math.lua"] = "BUILD/MODULES/text_math.lua",
-    ["MODULES/text_baker.lua"] = "BUILD/MODULES/text_baker.lua",
-    ["MODULES/rasterize_triangle.lua"] = "BUILD/MODULES/rasterize_triangle.lua",
-    ["MODULES/state.lua"] = "BUILD/MODULES/state.lua",
-    ["MODULES/presentation.lua"] = "BUILD/MODULES/presentation.lua",
-    ["KERNELS/proc_treadmill.lua"] = "BUILD/KERNELS/proc_treadmill.lua",
-    ["MODULES/proc_gen.lua"] = "BUILD/MODULES/proc_gen.lua",
-    ["main.lua"] = "BUILD/main.lua",
---    ["conf.lua"] = "BUILD/conf.lua",
---    ["MODULES/bench.lua"] = "BUILD/MODULES/bench.lua",
-}
+
 local raw_manifest = {} -- now empty because we broke free from json chains
 local function setup_build_dir(dir)
     local ok = os.execute("test -d " .. dir)
