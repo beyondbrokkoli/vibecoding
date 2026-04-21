@@ -19,14 +19,14 @@ return function(
 )
     local Chorus = {}
     local my_obj_start
-    local CUBE_COUNT = 300 -- Back to the GOATED readable scale
+    local CUBE_COUNT = 300
     local time_alive = 0
 
     local RunPhysics = PhysicsFactory(
         Obj_X, Obj_Y, Obj_Z, Obj_VelX, Obj_VelY, Obj_VelZ,
         Obj_Yaw, Obj_Pitch, Obj_RotSpeedYaw, Obj_RotSpeedPitch,
         Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
-        nil, 
+        nil, -- Pass nil so they don't bounce off the universe cage!
         Count_BoundSphere, BoundSphere_X, BoundSphere_Y, BoundSphere_Z, BoundSphere_RSq, BoundSphere_Mode,
         Count_BoundBox, BoundBox_X, BoundBox_Y, BoundBox_Z, BoundBox_HW, BoundBox_HH, BoundBox_HT,
         BoundBox_FWX, BoundBox_FWY, BoundBox_FWZ, BoundBox_RTX, BoundBox_RTY, BoundBox_RTZ, BoundBox_UPX, BoundBox_UPY, BoundBox_UPZ, BoundBox_Mode
@@ -40,6 +40,7 @@ return function(
         Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor
     )
 
+    -- Normalizes an angle to be between -PI and PI to prevent infinite spinning
     local function normalize_angle(angle)
         while angle > math_pi do angle = angle - (math_pi * 2) end
         while angle < -math_pi do angle = angle + (math_pi * 2) end
@@ -48,26 +49,29 @@ return function(
 
     function Chorus.Init()
         my_obj_start, _ = Memory.ClaimObjects(CUBE_COUNT)
-
+        
         if TextModule then
-            TextModule.Spawn(0, 11000, 0, "# KINEMATIC CHORUS\n~ \27[33mUNDULATING DNA HELIX\n| \27[36mBEHAVIOR: SWIRLING SYNCHRONICITY", 3000, 0, 0, true)
+            TextModule.Spawn(0, 11000, 0, "# KINEMATIC CHORUS\n~ \27[33mDOUBLE-HELIX STAIRCASE\n| \27[36mBEHAVIOR: POOL DIVER SYNCHRONICITY", 3000, 0, 0, true)
         end
 
-        local s = 100 -- Perfect geometry size
+        local s = 100 -- Half-size of the cubes
 
         for i = 0, CUBE_COUNT - 1 do
             local id = my_obj_start + i
             local vStart, tStart = Memory.ClaimGeometry(8, 12)
-
+            
+            -- Spawn them all in a chaotic pile at the bottom.
+            -- They will physically fly up to build the staircase!
             Obj_X[id] = (math.random() - 0.5) * 4000
             Obj_Y[id] = -2000 + (math.random() - 0.5) * 1000
             Obj_Z[id] = (math.random() - 0.5) * 4000
             Obj_Yaw[id], Obj_Pitch[id] = 0, 0
             Obj_Radius[id] = s * 2.0
-
+            
             Obj_VertStart[id], Obj_VertCount[id] = vStart, 8
             Obj_TriStart[id], Obj_TriCount[id] = tStart, 12
 
+            -- [1] THE CUBE VERTICES
             local verts = {
                 {-s, -s, -s}, {s, -s, -s}, {s, s, -s}, {-s, s, -s},
                 {-s, -s,  s}, {s, -s,  s}, {s, s,  s}, {-s, s,  s}
@@ -76,6 +80,7 @@ return function(
                 Vert_LX[vStart+v], Vert_LY[vStart+v], Vert_LZ[vStart+v] = verts[v+1][1], verts[v+1][2], verts[v+1][3]
             end
 
+            -- [2] THE CUBE FACES (CCW Winding)
             local indices = {
                 0,2,1, 0,3,2, -- Front
                 5,7,4, 5,6,7, -- Back
@@ -85,23 +90,25 @@ return function(
                 4,3,0, 4,7,3  -- Left
             }
 
-            local base_r, base_g, base_b = 200, 200, 200 
-            if i % 2 == 0 then base_r, base_g, base_b = 40, 200, 255 end 
+            -- [3] BAKED DIRECTIONAL LIGHTING
+            local base_r, base_g, base_b = 200, 200, 200 -- Off-white concrete
+            if i % 2 == 0 then base_r, base_g, base_b = 40, 200, 255 end -- Cyan alternating stairs
 
             local tIdx = tStart
             for f = 1, #indices, 3 do
                 Tri_V1[tIdx] = vStart + indices[f]
                 Tri_V2[tIdx] = vStart + indices[f+1]
                 Tri_V3[tIdx] = vStart + indices[f+2]
-
+                
+                -- Shading multiplier based on the face direction
                 local face_idx = floor((f-1)/6)
                 local shade = 1.0
-                if face_idx == 0 then shade = 0.9      
-                elseif face_idx == 1 then shade = 0.7  
-                elseif face_idx == 2 then shade = 1.0  
-                elseif face_idx == 3 then shade = 0.4  
-                elseif face_idx == 4 then shade = 0.8  
-                elseif face_idx == 5 then shade = 0.6  
+                if face_idx == 0 then shade = 0.9      -- Front
+                elseif face_idx == 1 then shade = 0.7  -- Back
+                elseif face_idx == 2 then shade = 1.0  -- Top (Brightest)
+                elseif face_idx == 3 then shade = 0.4  -- Bottom (Darkest)
+                elseif face_idx == 4 then shade = 0.8  -- Right
+                elseif face_idx == 5 then shade = 0.6  -- Left
                 end
 
                 local cr, cg, cb = floor(base_r * shade), floor(base_g * shade), floor(base_b * shade)
@@ -113,53 +120,53 @@ return function(
 
     function Chorus.Tick(dt)
         time_alive = time_alive + dt
-        local spring = 6.0
+        
+        -- The Proportional Spring Constant (How fast they snap to targets)
+        local spring = 6.0 
 
         for i = 0, CUBE_COUNT - 1 do
             local id = my_obj_start + i
+            
+            -- [A] THE BASE CHOREOGRAPHY (Double Helix)
             local is_second_helix = i % 2 == 0
             local step_idx = floor(i / 2)
             
-            -- [NEW] THE PROCEDURAL SPINE (The Snake Effect)
-            -- Instead of a straight pole, the center of the helix dances.
-            local spine_t = step_idx * 0.05
-            local spine_x = math_sin(spine_t * 1.5 + time_alive * 0.8) * 2500
-            local spine_z = math_cos(spine_t * 1.1 + time_alive * 0.6) * 2500
-            
-            -- Keep the Y axis climbing up, but add a breathing bounce
-            local base_y = step_idx * 50 - 3000 + math_sin(spine_t * 2.0 + time_alive) * 600
-
-            -- [A] THE BASE CHOREOGRAPHY (Wrapping around the swirling spine)
-            local theta = step_idx * 0.15 + (is_second_helix and math_pi or 0) + (time_alive * 1.2)
-            local r = 1200
+            local theta = step_idx * 0.15 + (is_second_helix and math_pi or 0) + (time_alive * 0.4)
+            local r = 1500
+            local base_y = step_idx * 50 - 2500
             
             -- [B] THE POOL DIVER RIPPLE
+            -- A sine wave that travels continuously up the steps over time
             local wave_phase = step_idx * 0.15 - time_alive * 4.0
             local wave = math_sin(wave_phase)
             
-            -- Lock the target relative to the moving spine!
-            local target_x = spine_x + math_cos(theta) * r
+            local target_x = math_cos(theta) * r
             local target_y = base_y
-            local target_z = spine_z + math_sin(theta) * r
+            local target_z = math_sin(theta) * r
             
             local target_yaw = -theta
             local target_pitch = 0
             
-            -- The synchronized backflip
+            -- If the ripple hits the step, LEAP out of formation!
             if wave > 0.85 then
+                -- Normalize the peak of the wave to 0.0 -> 1.0
                 local leap_power = (wave - 0.85) * (1.0 / 0.15) 
                 
-                target_x = target_x + math_cos(theta) * (leap_power * 1000)
-                target_y = target_y + (leap_power * 1200)                  
-                target_z = target_z + math_sin(theta) * (leap_power * 1000)
+                target_x = target_x + math_cos(theta) * (leap_power * 800) -- Jump outward
+                target_y = target_y + (leap_power * 1000)                  -- Jump upward
+                target_z = target_z + math_sin(theta) * (leap_power * 800)
+                
+                -- Synchronized Backflip
                 target_pitch = leap_power * math_pi * 2.0
             end
 
             -- [C] KINEMATIC INJECTION
+            -- Calculate distance to target and inject velocity to steer it there
             Obj_VelX[id] = (target_x - Obj_X[id]) * spring
             Obj_VelY[id] = (target_y - Obj_Y[id]) * spring
             Obj_VelZ[id] = (target_z - Obj_Z[id]) * spring
             
+            -- Steer rotations
             local diff_yaw = normalize_angle(target_yaw - Obj_Yaw[id])
             local diff_pitch = normalize_angle(target_pitch - Obj_Pitch[id])
             Obj_RotSpeedYaw[id] = diff_yaw * spring

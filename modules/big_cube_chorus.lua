@@ -19,14 +19,14 @@ return function(
 )
     local Chorus = {}
     local my_obj_start
-    local CUBE_COUNT = 300 -- Back to the GOATED readable scale
+    local CUBE_COUNT = 1000 -- SCALED UP!
     local time_alive = 0
 
     local RunPhysics = PhysicsFactory(
         Obj_X, Obj_Y, Obj_Z, Obj_VelX, Obj_VelY, Obj_VelZ,
         Obj_Yaw, Obj_Pitch, Obj_RotSpeedYaw, Obj_RotSpeedPitch,
         Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
-        nil, 
+        nil, -- Pass nil so they don't bounce off the universe cage!
         Count_BoundSphere, BoundSphere_X, BoundSphere_Y, BoundSphere_Z, BoundSphere_RSq, BoundSphere_Mode,
         Count_BoundBox, BoundBox_X, BoundBox_Y, BoundBox_Z, BoundBox_HW, BoundBox_HH, BoundBox_HT,
         BoundBox_FWX, BoundBox_FWY, BoundBox_FWZ, BoundBox_RTX, BoundBox_RTY, BoundBox_RTZ, BoundBox_UPX, BoundBox_UPY, BoundBox_UPZ, BoundBox_Mode
@@ -50,18 +50,19 @@ return function(
         my_obj_start, _ = Memory.ClaimObjects(CUBE_COUNT)
 
         if TextModule then
-            TextModule.Spawn(0, 11000, 0, "# KINEMATIC CHORUS\n~ \27[33mUNDULATING DNA HELIX\n| \27[36mBEHAVIOR: SWIRLING SYNCHRONICITY", 3000, 0, 0, true)
+            TextModule.Spawn(0, 11000, 0, "# KINEMATIC CHORUS\n~ \27[33mTITAN-CLASS DOUBLE HELIX\n| \27[36mBEHAVIOR: POOL DIVER SYNCHRONICITY", 5000, 0, 0, true)
         end
 
-        local s = 100 -- Perfect geometry size
+        local s = 150 -- SCALED UP CUBES
 
         for i = 0, CUBE_COUNT - 1 do
             local id = my_obj_start + i
             local vStart, tStart = Memory.ClaimGeometry(8, 12)
 
-            Obj_X[id] = (math.random() - 0.5) * 4000
-            Obj_Y[id] = -2000 + (math.random() - 0.5) * 1000
-            Obj_Z[id] = (math.random() - 0.5) * 4000
+            -- Spawn them all in a massive chaotic pile at the bottom.
+            Obj_X[id] = (math.random() - 0.5) * 8000
+            Obj_Y[id] = -3500 + (math.random() - 0.5) * 1000
+            Obj_Z[id] = (math.random() - 0.5) * 8000
             Obj_Yaw[id], Obj_Pitch[id] = 0, 0
             Obj_Radius[id] = s * 2.0
 
@@ -85,8 +86,8 @@ return function(
                 4,3,0, 4,7,3  -- Left
             }
 
-            local base_r, base_g, base_b = 200, 200, 200 
-            if i % 2 == 0 then base_r, base_g, base_b = 40, 200, 255 end 
+            local base_r, base_g, base_b = 200, 200, 200
+            if i % 2 == 0 then base_r, base_g, base_b = 40, 200, 255 end
 
             local tIdx = tStart
             for f = 1, #indices, 3 do
@@ -96,12 +97,12 @@ return function(
 
                 local face_idx = floor((f-1)/6)
                 local shade = 1.0
-                if face_idx == 0 then shade = 0.9      
-                elseif face_idx == 1 then shade = 0.7  
-                elseif face_idx == 2 then shade = 1.0  
-                elseif face_idx == 3 then shade = 0.4  
-                elseif face_idx == 4 then shade = 0.8  
-                elseif face_idx == 5 then shade = 0.6  
+                if face_idx == 0 then shade = 0.9
+                elseif face_idx == 1 then shade = 0.7
+                elseif face_idx == 2 then shade = 1.0
+                elseif face_idx == 3 then shade = 0.4
+                elseif face_idx == 4 then shade = 0.8
+                elseif face_idx == 5 then shade = 0.6
                 end
 
                 local cr, cg, cb = floor(base_r * shade), floor(base_g * shade), floor(base_b * shade)
@@ -113,45 +114,45 @@ return function(
 
     function Chorus.Tick(dt)
         time_alive = time_alive + dt
-        local spring = 6.0
+
+        -- Slightly looser spring (4.0 instead of 6.0) so the massive macro-leaps 
+        -- have a beautiful, weighty hang-time before snapping back.
+        local spring = 4.0
 
         for i = 0, CUBE_COUNT - 1 do
             local id = my_obj_start + i
+
+            -- [A] THE TITAN CHOREOGRAPHY
             local is_second_helix = i % 2 == 0
             local step_idx = floor(i / 2)
-            
-            -- [NEW] THE PROCEDURAL SPINE (The Snake Effect)
-            -- Instead of a straight pole, the center of the helix dances.
-            local spine_t = step_idx * 0.05
-            local spine_x = math_sin(spine_t * 1.5 + time_alive * 0.8) * 2500
-            local spine_z = math_cos(spine_t * 1.1 + time_alive * 0.6) * 2500
-            
-            -- Keep the Y axis climbing up, but add a breathing bounce
-            local base_y = step_idx * 50 - 3000 + math_sin(spine_t * 2.0 + time_alive) * 600
 
-            -- [A] THE BASE CHOREOGRAPHY (Wrapping around the swirling spine)
-            local theta = step_idx * 0.15 + (is_second_helix and math_pi or 0) + (time_alive * 1.2)
-            local r = 1200
+            -- Slower twist to account for the massive height
+            local theta = step_idx * 0.10 + (is_second_helix and math_pi or 0) + (time_alive * 0.4)
+            local r = 8000 -- Pushing the very edges of the Universe Cage
+            local base_y = step_idx * 35 - 3800 -- Stretch from the floor to the ceiling
             
             -- [B] THE POOL DIVER RIPPLE
-            local wave_phase = step_idx * 0.15 - time_alive * 4.0
+            -- Travel slightly faster to cross the immense distance
+            local wave_phase = step_idx * 0.12 - time_alive * 1.0 --5.0
             local wave = math_sin(wave_phase)
-            
-            -- Lock the target relative to the moving spine!
-            local target_x = spine_x + math_cos(theta) * r
+
+            local target_x = math_cos(theta) * r
             local target_y = base_y
-            local target_z = spine_z + math_sin(theta) * r
-            
+            local target_z = math_sin(theta) * r
+
             local target_yaw = -theta
             local target_pitch = 0
-            
-            -- The synchronized backflip
+
+            -- If the ripple hits the step, LEAP out of formation!
             if wave > 0.85 then
-                local leap_power = (wave - 0.85) * (1.0 / 0.15) 
-                
-                target_x = target_x + math_cos(theta) * (leap_power * 1000)
-                target_y = target_y + (leap_power * 1200)                  
-                target_z = target_z + math_sin(theta) * (leap_power * 1000)
+                local leap_power = (wave - 0.85) * (1.0 / 0.15)
+
+                -- Massive leap scaled to the giant radius
+                target_x = target_x + math_cos(theta) * (leap_power * 3000) 
+                target_y = target_y + (leap_power * 2500)                  
+                target_z = target_z + math_sin(theta) * (leap_power * 3000)
+
+                -- Synchronized Backflip
                 target_pitch = leap_power * math_pi * 2.0
             end
 
@@ -159,7 +160,7 @@ return function(
             Obj_VelX[id] = (target_x - Obj_X[id]) * spring
             Obj_VelY[id] = (target_y - Obj_Y[id]) * spring
             Obj_VelZ[id] = (target_z - Obj_Z[id]) * spring
-            
+
             local diff_yaw = normalize_angle(target_yaw - Obj_Yaw[id])
             local diff_pitch = normalize_angle(target_pitch - Obj_Pitch[id])
             Obj_RotSpeedYaw[id] = diff_yaw * spring
