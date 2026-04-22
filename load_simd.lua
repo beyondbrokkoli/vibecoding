@@ -16,7 +16,7 @@ local function load_simd_library()
     end
 
     -- 2. Try Development Path (Absolute path to your unzipped project folder)
-    local base_dir = love.filesystem.getSourceBaseDirectory()
+    local base_dir = love.filesystem.getSource()
     local dev_path = base_dir .. "/" .. lib_name
 
     local success, lib = pcall(ffi.load, dev_path)
