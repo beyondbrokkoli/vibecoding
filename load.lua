@@ -20,14 +20,14 @@ local function load_simd_library()
     local dev_path = base_dir .. "/" .. lib_name
 
     local success, lib = pcall(ffi.load, dev_path)
-    if success then 
+    if success then
         print("[SIMD] Booted native library from Dev Path: " .. dev_path)
-        return lib 
+        return lib
     end
 
     -- 3. Try Production Path (We are inside a .love zip archive)
     print("[SIMD] Dev path failed. Extracting library from .love archive...")
-    
+
     -- LÖVE's Save Directory (e.g., ~/.local/share/love/UltimaPlatin/ on Linux)
     local save_dir = love.filesystem.getSaveDirectory()
     local save_path = save_dir .. "/" .. lib_name
@@ -37,7 +37,7 @@ local function load_simd_library()
     if file_data then
         -- Write it to the real OS disk so the linker can actually see it
         love.filesystem.write(lib_name, file_data)
-        
+
         success, lib = pcall(ffi.load, save_path)
         if success then
             print("[SIMD] Extracted and loaded library from Save Path: " .. save_path)
@@ -79,6 +79,30 @@ ffi.cdef[[
         uint32_t clear_color,
         float clear_z,
         int pixel_count
+    );
+    void process_triangles_cull(
+        int tCount,
+        int* v1, int* v2, int* v3, bool* vert_valid,
+        float* px, float* py, float* pz,
+        float* lx, float* ly, float* lz,
+        uint32_t* baked_color, uint32_t* shaded_color, bool* tri_valid,
+        float rx, float ry, float rz,
+        float ux, float uy, float uz,
+        float fx, float fy, float fz,
+        float sun_x, float sun_y, float sun_z
+    );
+    void generate_smales_paradox_vertices(
+        float* lx, float* ly, float* lz,
+        int latitudes, int longitudes,
+        float eversion, float bulge, float base_radius
+    );
+    void rasterize_triangles_batch(
+        int tCount,
+        int* v1, int* v2, int* v3, bool* tri_valid,
+        float* px, float* py, float* pz,
+        uint32_t* shaded_color,
+        uint32_t* screen_buffer, float* z_buffer,
+        int canvas_w, int canvas_h
     );
 ]]
 -- Execute and return the loaded library

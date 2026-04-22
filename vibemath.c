@@ -224,3 +224,225 @@ EXPORT void simd_clear_buffers(
         zbuffer[i] = clear_z;
     }
 }
+EXPORT void process_triangles_cull(
+    int tCount,
+    // Indices & Validity
+    int* v1, int* v2, int* v3, bool* vert_valid,
+    // Coordinates
+    float* px, float* py, float* pz,
+    float* lx, float* ly, float* lz,
+    // Colors & Outputs
+    uint32_t* baked_color, uint32_t* shaded_color, bool* tri_valid,
+    // Object Rotation Matrix
+    float rx, float ry, float rz,
+    float ux, float uy, float uz,
+    float fx, float fy, float fz,
+    // Sun Vector
+    float sun_x, float sun_y, float sun_z
+) {
+    for (int i = 0; i < tCount; i++) {
+        int i1 = v1[i];
+        int i2 = v2[i];
+        int i3 = v3[i];
+
+        // 1. Frustum/Vertex Culling
+        if (!vert_valid[i1] || !vert_valid[i2] || !vert_valid[i3]) {
+            tri_valid[i] = false;
+            continue;
+        }
+
+        // Fetch Screen Coords
+        float px1 = px[i1], py1 = py[i1];
+        float px2 = px[i2], py2 = py[i2];
+        float px3 = px[i3], py3 = py[i3];
+
+        // 2. BACKFACE CULLING (The Magic)
+        // If cross product is >= 0, it's facing away from the camera.
+        float cross = (px2 - px1) * (py3 - py1) - (py2 - py1) * (px3 - px1);
+        if (cross >= 0) { 
+            tri_valid[i] = false; // Kill the triangle!
+            continue;             // Skip all lighting math!
+        }
+
+        uint32_t orig_col = baked_color[i];
+
+        // 3. Local Edges & Normal
+        float ax = lx[i2] - lx[i1], ay = ly[i2] - ly[i1], az = lz[i2] - lz[i1];
+        float bx = lx[i3] - lx[i1], by = ly[i3] - ly[i1], bz = lz[i3] - lz[i1];
+
+        float lnx = ay * bz - az * by;
+        float lny = az * bx - ax * bz;
+        float lnz = ax * by - ay * bx;
+
+        // 4. Transform to World Normal
+        float wnx = lnx * rx + lny * ux + lnz * fx;
+        float wny = lnx * ry + lny * uy + lnz * fy;
+        float wnz = lnx * rz + lny * uz + lnz * fz;
+
+        // Normalize
+        float inv_len = 1.0f / sqrtf(wnx*wnx + wny*wny + wnz*wnz + 0.000001f);
+        wnx *= inv_len; wny *= inv_len; wnz *= inv_len;
+
+        // 5. Lambertian Lighting
+        float dot = wnx * sun_x + wny * sun_y + wnz * sun_z;
+
+        // Clamp Light (0.2 to 1.0)
+        float light = dot < 0.2f ? 0.2f : (dot > 1.0f ? 1.0f : dot);
+
+        // 6. Apply Light to Color
+        uint32_t b = (uint32_t)(((orig_col >> 16) & 0xFF) * light);
+        uint32_t g = (uint32_t)(((orig_col >> 8) & 0xFF) * light);
+        uint32_t r = (uint32_t)((orig_col & 0xFF) * light);
+
+        shaded_color[i] = 0xFF000000 | (b << 16) | (g << 8) | r;
+        tri_valid[i] = true; // Triangle survives!
+    }
+}
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+EXPORT void generate_smales_paradox_vertices(
+    float* lx, float* ly, float* lz,
+    int latitudes, int longitudes,
+    float eversion, float bulge, float base_radius
+) {
+    int idx = 0;
+    for (int i = 0; i <= latitudes; i++) {
+        float theta = ((float)i / latitudes) * (float)M_PI;
+        float ny = cosf(theta);
+        float sin_theta = sinf(theta);
+        
+        for (int j = 0; j <= longitudes; j++) {
+            float phi = ((float)j / longitudes) * (float)M_PI * 2.0f;
+            float nx = sin_theta * cosf(phi);
+            float nz = sin_theta * sinf(phi);
+            
+            float r_main = base_radius * eversion;
+            float waves = cosf(phi * 4.0f);
+            float twist = sinf(theta * 2.0f);
+            float r_corrugate = base_radius * bulge * waves * twist * 1.2f;
+
+            lx[idx] = nx * r_main + nx * r_corrugate;
+            ly[idx] = ny * r_main + (cosf(theta * 3.0f) * base_radius * bulge * 0.5f);
+            lz[idx] = nz * r_main + nz * r_corrugate;
+            
+            idx++;
+        }
+    }
+}
+EXPORT void rasterize_triangles_batch(
+    int tCount,
+    int* v1, int* v2, int* v3, bool* tri_valid,
+    float* px, float* py, float* pz,
+    uint32_t* shaded_color,
+    uint32_t* screen_buffer, float* z_buffer,
+    int canvas_w, int canvas_h
+) {
+    for (int i = 0; i < tCount; i++) {
+        if (!tri_valid[i]) continue;
+        
+        // Grab coordinates
+        int i1 = v1[i], i2 = v2[i], i3 = v3[i];
+        float x1 = px[i1], y1 = py[i1], z1 = pz[i1];
+        float x2 = px[i2], y2 = py[i2], z2 = pz[i2];
+        float x3 = px[i3], y3 = py[i3], z3 = pz[i3];
+        uint32_t color = shaded_color[i];
+
+        // Sort vertices by Y (y1 < y2 < y3)
+        if (y1 > y2) { float t=x1; x1=x2; x2=t;  t=y1; y1=y2; y2=t;  t=z1; z1=z2; z2=t; }
+        if (y1 > y3) { float t=x1; x1=x3; x3=t;  t=y1; y1=y3; y3=t;  t=z1; z1=z3; z3=t; }
+        if (y2 > y3) { float t=x2; x2=x3; x3=t;  t=y2; y2=y3; y3=t;  t=z2; z2=z3; z3=t; }
+
+        float total_height = y3 - y1;
+        if (total_height <= 0.0f) continue;
+
+        float inv_total = 1.0f / total_height;
+        int y_start = (int)fmaxf(0.0f, ceilf(y1));
+        int y_end   = (int)fminf((float)(canvas_h - 1), floorf(y3));
+
+        // ==========================================
+        // UPPER TRIANGLE
+        // ==========================================
+        float dy_upper = y2 - y1;
+        if (dy_upper > 0.0f) {
+            float inv_upper = 1.0f / dy_upper;
+            int limit_y = (int)fminf((float)y_end, floorf(y2));
+
+            for (int y = y_start; y <= limit_y; y++) {
+                float t_total = (y - y1) * inv_total;
+                float t_half  = (y - y1) * inv_upper;
+                float ax = x1 + (x3 - x1) * t_total;
+                float az = z1 + (z3 - z1) * t_total;
+                float bx = x1 + (x2 - x1) * t_half;
+                float bz = z1 + (z2 - z1) * t_half;
+
+                // Enforce ax (left) to bx (right)
+                if (ax > bx) {
+                    float t = ax; ax = bx; bx = t;
+                    t = az; az = bz; bz = t;
+                }
+
+                float row_width = bx - ax;
+                if (row_width > 0.0f) {
+                    float z_step = (bz - az) / row_width;
+                    int start_x = (int)fmaxf(0.0f, ceilf(ax));
+                    int end_x   = (int)fminf((float)(canvas_w - 1), floorf(bx));
+                    float current_z = az + z_step * (start_x - ax);
+
+                    int off = y * canvas_w;
+                    // The Inner Loop
+                    for (int x = start_x; x <= end_x; x++) {
+                        if (current_z < z_buffer[off + x]) {
+                            z_buffer[off + x] = current_z;
+                            screen_buffer[off + x] = color;
+                        }
+                        current_z += z_step;
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // LOWER TRIANGLE
+        // ==========================================
+        float dy_lower = y3 - y2;
+        if (dy_lower > 0.0f) {
+            float inv_lower = 1.0f / dy_lower;
+            int start_y = (int)fmaxf((float)y_start, ceilf(y2));
+
+            for (int y = start_y; y <= y_end; y++) {
+                float t_total = (y - y1) * inv_total;
+                float t_half  = (y - y2) * inv_lower;
+                float ax = x1 + (x3 - x1) * t_total;
+                float az = z1 + (z3 - z1) * t_total;
+                float bx = x2 + (x3 - x2) * t_half;
+                float bz = z2 + (z3 - z2) * t_half;
+
+                // Enforce ax (left) to bx (right)
+                if (ax > bx) {
+                    float t = ax; ax = bx; bx = t;
+                    t = az; az = bz; bz = t;
+                }
+
+                float row_width = bx - ax;
+                if (row_width > 0.0f) {
+                    float z_step = (bz - az) / row_width;
+                    int start_x = (int)fmaxf(0.0f, ceilf(ax));
+                    int end_x   = (int)fminf((float)(canvas_w - 1), floorf(bx));
+                    float current_z = az + z_step * (start_x - ax);
+
+                    int off = y * canvas_w;
+                    // The Inner Loop
+                    for (int x = start_x; x <= end_x; x++) {
+                        if (current_z < z_buffer[off + x]) {
+                            z_buffer[off + x] = current_z;
+                            screen_buffer[off + x] = color;
+                        }
+                        current_z += z_step;
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,7 +1,7 @@
 local bit = require("bit")
 local math_sin, math_cos, math_pi = math.sin, math.cos, math.pi
-
-local RenderMeshTwoToneFactory = require("render_simd_twotone")
+local RenderMeshTwoToneFactory = require("render_twotone")
+local VibeMath = require("load") -- Add this!
 
 return function(
     Memory, MainCamera,
@@ -84,38 +84,18 @@ return function(
         Obj_UPY[id] = Obj_FWZ[id] * Obj_RTX[id] - Obj_FWX[id] * Obj_RTZ[id]
         Obj_UPZ[id] = -Obj_FWY[id] * Obj_RTX[id]
 
-        -- THE EVERSION DEFORMATION MATH
         local t = time_alive * 0.05
-        local eversion = math_cos(t) 
-        local bulge = math_sin(t)    
-
+        local eversion = math_cos(t)
+        local bulge = math_sin(t)
         local vStart = Obj_VertStart[id]
-        local idx = vStart
 
-        for i = 0, LATITUDES do
-            local theta = (i / LATITUDES) * math_pi
-            local ny = math_cos(theta)
-            local sin_theta = math_sin(theta)
-
-            for j = 0, LONGITUDES do
-                local phi = (j / LONGITUDES) * math_pi * 2
-                local nx = sin_theta * math_cos(phi)
-                local nz = sin_theta * math_sin(phi)
-
-                local r_base = 3500
-                local r_main = r_base * eversion
-
-                -- The "Corrugations" to prevent the singularity pinch-point
-                local waves = math_cos(phi * 4.0)
-                local twist = math_sin(theta * 2.0)
-                local r_corrugate = r_base * bulge * waves * twist * 1.2
-
-                Vert_LX[idx] = nx * r_main + nx * r_corrugate
-                Vert_LY[idx] = ny * r_main + (math_cos(theta * 3.0) * r_base * bulge * 0.5)
-                Vert_LZ[idx] = nz * r_main + nz * r_corrugate
-                idx = idx + 1
-            end
-        end
+        -- THE C-KERNEL TAKEOVER
+        local r_base = 3500
+        VibeMath.generate_smales_paradox_vertices(
+            Vert_LX + vStart, Vert_LY + vStart, Vert_LZ + vStart,
+            LATITUDES, LONGITUDES,
+            eversion, bulge, r_base
+        )
     end
 
     function Paradox.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)

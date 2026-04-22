@@ -5,10 +5,9 @@
 -- ========================================================================
 local ffi = require("ffi")
 
-local VibeMath = require("load_simd")
+local VibeMath = require("load")
 
 local max, min, floor, abs, sqrt = math.max, math.min, math.floor, math.abs, math.sqrt
-local RasterizeTriangle = require("rasterize")
 
 return function(
     Obj_X, Obj_Y, Obj_Z, Obj_Radius,
@@ -68,21 +67,16 @@ return function(
             )
 
             -- ==========================================================
-            -- PASS 4: Rasterization Dispatch
+            -- PASS 4: Rasterization Dispatch (C-Batch)
             -- ==========================================================
-            for i = 0, tCount - 1 do
-                local idx = tStart + i
-                if Tri_Valid[idx] then
-                    local i1, i2, i3 = Tri_V1[idx], Tri_V2[idx], Tri_V3[idx]
-
-                    RasterizeTriangle(
-                        Vert_PX[i1], Vert_PY[i1], Vert_PZ[i1],
-                        Vert_PX[i2], Vert_PY[i2], Vert_PZ[i2],
-                        Vert_PX[i3], Vert_PY[i3], Vert_PZ[i3],
-                        Tri_ShadedColor[idx], CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer
-                    )
-                end
-            end
+            VibeMath.rasterize_triangles_batch(
+                tCount,
+                Tri_V1 + tStart, Tri_V2 + tStart, Tri_V3 + tStart, Tri_Valid + tStart,
+                Vert_PX, Vert_PY, Vert_PZ,
+                Tri_ShadedColor + tStart,
+                ScreenPtr, ZBuffer,
+                CANVAS_W, CANVAS_H
+            )
             ::skip_tile::
         end
     end

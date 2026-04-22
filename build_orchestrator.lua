@@ -1,13 +1,13 @@
 local function compile_simd_libraries()
     print("--- COMPILING SIMD KERNELS ---")
-    
+
     -- 1. Compile for Linux (.so) using standard GCC
-    local linux_cmd = "gcc -O3 -mavx -mavx2 -mfma -shared -fPIC vibemath.c -o BUILD/libvibemath.so"
+    local linux_cmd = "gcc -O3 -mavx -mavx2 -mfma -shared -fPIC vibemath.c -o libvibemath.so"
     print("  |- Building Linux shared object...")
     os.execute(linux_cmd)
 
     -- 2. Compile for Windows (.dll) using MinGW Cross-Compiler!
-    local win_cmd = "x86_64-w64-mingw32-gcc -O3 -mavx -mavx2 -mfma -shared -fPIC vibemath.c -o BUILD/vibemath.dll"
+    local win_cmd = "x86_64-w64-mingw32-gcc -O3 -mavx -mavx2 -mfma -shared -fPIC vibemath.c -o vibemath.dll"
     print("  |- Cross-compiling Windows DLL...")
     os.execute(win_cmd)
 end
@@ -73,18 +73,20 @@ local function copy_file(src, dest)
     f_out:close()
     return true
 end
+
 local process_manifest = {
---    ["memory.lua"] = "BUILD/memory.lua",
---    ["sequence.lua"] = "BUILD/sequence.lua",
+    ["memory.lua"] = "BUILD/memory.lua",
+    ["sequence.lua"] = "BUILD/sequence.lua",
     ["main.lua"] = "BUILD/main.lua",
---    ["text.lua"] = "BUILD/text.lua",
-    ["render_simd_twotone.lua"] = "BUILD/render_simd_twotone.lua",
-    ["load_simd.lua"] = "BUILD/load_simd.lua",
---    ["modules/camera.lua"] = "BUILD/modules/camera.lua",
---    ["modules/megaknot.lua"] = "BUILD/modules/megaknot.lua",
---    ["modules/nokia_snake.lua"] = "BUILD/modules/nokia_snake.lua",
---    ["modules/donuts.lua"] = "BUILD/modules/donuts.lua",
---    ["physics.lua"] = "BUILD/physics.lua",
+    ["render_twotone.lua"] = "BUILD/render_twotone.lua",
+    ["load.lua"] = "BUILD/load.lua",
+    ["smales_paradox.lua"] = "BUILD/modules/smales_paradox.lua",
+    ["modules/camera.lua"] = "BUILD/modules/camera.lua",
+    ["conf.lua"] = "BUILD/conf.lua",
+    ["physics.lua"] = "BUILD/physics.lua",
+    ["camera.lua"] = "BUILD/camera.lua",
+    ["build_orchestrator.lua"] = "BUILD/built_orchestrator.lua",
+    ["bench.lua"] = "BUILD/bench.lua",
 }
 
 local raw_manifest = {} -- now empty because we broke free from json chains
@@ -130,20 +132,16 @@ local function get_sorted_files()
     return sorted
 end
 
-if not setup_build_dir("BUILD") then os.exit(1) end
-if not setup_build_dir("BUILD/KERNELS") then os.exit(1) end
-if not setup_build_dir("BUILD/MODULES") then os.exit(1) end
-if not setup_build_dir("BUILD/ROUTINES") then os.exit(1) end
-if not setup_build_dir("BUILD/core") then os.exit(1) end
-print("--- COMPILING SIMD LIBRARY ---")
+-- if not setup_build_dir("BUILD") then os.exit(1) end
+
 compile_simd_libraries()
-print("--- MOUNTING TO BUILD/ ---")
-for src, dest in pairs(process_manifest) do
-    if strip_to_target(src, dest) then print("  |- (Stripped) " .. src) end
-end
-for src, dest in pairs(raw_manifest) do
-    if copy_file(src, dest) then print("  |- (Raw)      " .. src) end
-end
+
+--for src, dest in pairs(process_manifest) do
+--    if strip_to_target(src, dest) then print("  |- (Stripped) " .. src) end
+--end
+--for src, dest in pairs(raw_manifest) do
+--    if copy_file(src, dest) then print("  |- (Raw)      " .. src) end
+--end
 print("\n--- AI SNAPSHOT ---")
 local order = get_sorted_files()
 for _, src in ipairs(order) do
