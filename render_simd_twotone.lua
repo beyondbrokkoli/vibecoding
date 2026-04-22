@@ -53,72 +53,34 @@ return function(
             )
 
             -- ==========================================================
-            -- PASS 3: Triangle Winding & Rasterization
+            -- PASS 3: Triangle Assembly & Lighting (C-Kernel)
             -- ==========================================================
             local tStart, tCount = Obj_TriStart[id], Obj_TriCount[id]
+
+            VibeMath.process_triangles_twotone(
+                tCount,
+                Tri_V1 + tStart, Tri_V2 + tStart, Tri_V3 + tStart, Vert_Valid,
+                Vert_PX, Vert_PY, Vert_PZ,
+                Vert_LX, Vert_LY, Vert_LZ,
+                Tri_BakedColor + tStart, Tri_ShadedColor + tStart, Tri_Valid + tStart,
+                rx, ry, rz, ux, uy, uz, fx, fy, fz,
+                sun_x, sun_y, sun_z
+            )
+
+            -- ==========================================================
+            -- PASS 4: Rasterization Dispatch
+            -- ==========================================================
             for i = 0, tCount - 1 do
                 local idx = tStart + i
-                local i1, i2, i3 = Tri_V1[idx], Tri_V2[idx], Tri_V3[idx]
+                if Tri_Valid[idx] then
+                    local i1, i2, i3 = Tri_V1[idx], Tri_V2[idx], Tri_V3[idx]
 
-                if Vert_Valid[i1] and Vert_Valid[i2] and Vert_Valid[i3] then
-                    local px1, py1, pz1 = Vert_PX[i1], Vert_PY[i1], Vert_PZ[i1]
-                    local px2, py2, pz2 = Vert_PX[i2], Vert_PY[i2], Vert_PZ[i2]
-                    local px3, py3, pz3 = Vert_PX[i3], Vert_PY[i3], Vert_PZ[i3]
-
-                    -- 1. Screen-Space Winding Order (Am I looking at the front or back?)
-                    local cross = (px2-px1)*(py3-py1) - (py2-py1)*(px3-px1)
-                    local is_inside = cross >= 0
-
-                    -- 2. Base Color Swap
-                    local orig_col = Tri_BakedColor[idx]
-                    if is_inside then
-                        orig_col = bit.bor(0xFF000000, bit.lshift(255, 16), bit.lshift(0, 8), 170) -- Purple!
-                    end
-
-                    -- 3. REAL-TIME LAMBERTIAN SHADING
-                    -- Get Local Vertices
-                    local lx1, ly1, lz1 = Vert_LX[i1], Vert_LY[i1], Vert_LZ[i1]
-                    local lx2, ly2, lz2 = Vert_LX[i2], Vert_LY[i2], Vert_LZ[i2]
-                    local lx3, ly3, lz3 = Vert_LX[i3], Vert_LY[i3], Vert_LZ[i3]
-
-                    -- Local Edges
-                    local ax, ay, az = lx2 - lx1, ly2 - ly1, lz2 - lz1
-                    local bx, by, bz = lx3 - lx1, ly3 - ly1, lz3 - lz1
-
-                    -- Local Normal (Cross Product of edges)
-                    local lnx = ay * bz - az * by
-                    local lny = az * bx - ax * bz
-                    local lnz = ax * by - ay * bx
-
-                    -- Transform Local Normal to World Normal using the Matrix
-                    local wnx = lnx * rx + lny * ux + lnz * fx
-                    local wny = lnx * ry + lny * uy + lnz * fy
-                    local wnz = lnx * rz + lny * uz + lnz * fz
-
-                    -- Normalize World Normal
-                    local nLen = sqrt(wnx*wnx + wny*wny + wnz*wnz)
-                    if nLen == 0 then nLen = 1 end
-                    wnx, wny, wnz = wnx/nLen, wny/nLen, wnz/nLen
-
-                    -- Dot Product with the Sun
-                    local dot = wnx * sun_x + wny * sun_y + wnz * sun_z
-
-                    -- CRITICAL: If we are looking at the INSIDE, the normal points away from us.
-                    -- We must flip the dot product so the inside of the sphere catches light properly!
-                    if is_inside then dot = -dot end
-
-                    -- Clamp Light (0.2 Ambient, 1.0 Max)
-                    local light = max(0.2, min(1.0, dot))
-
-                    -- 4. Apply Light to Color
-                    local b = floor(bit.band(bit.rshift(orig_col, 16), 0xFF) * light)
-                    local g = floor(bit.band(bit.rshift(orig_col, 8), 0xFF) * light)
-                    local r = floor(bit.band(orig_col, 0xFF) * light)
-
-                    local shaded_color = bit.bor(0xFF000000, bit.lshift(b, 16), bit.lshift(g, 8), r)
-
-                    -- Fire to the Rasterizer
-                    RasterizeTriangle(px1,py1,pz1, px2,py2,pz2, px3,py3,pz3, shaded_color, CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
+                    RasterizeTriangle(
+                        Vert_PX[i1], Vert_PY[i1], Vert_PZ[i1],
+                        Vert_PX[i2], Vert_PY[i2], Vert_PZ[i2],
+                        Vert_PX[i3], Vert_PY[i3], Vert_PZ[i3],
+                        Tri_ShadedColor[idx], CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer
+                    )
                 end
             end
             ::skip_tile::

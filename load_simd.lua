@@ -62,6 +62,17 @@ ffi.cdef[[
         float cup_x, float cup_y, float cup_z,
         float cam_fov, float half_w, float half_h
     );
+    void process_triangles_twotone(
+        int tCount,
+        int* v1, int* v2, int* v3, bool* vert_valid,
+        float* px, float* py, float* pz,
+        float* lx, float* ly, float* lz,
+        uint32_t* baked_color, uint32_t* shaded_color, bool* tri_valid,
+        float rx, float ry, float rz,
+        float ux, float uy, float uz,
+        float fx, float fy, float fz,
+        float sun_x, float sun_y, float sun_z
+    );
 ]]
 -- Execute and return the loaded library
 return load_simd_library()

@@ -66,10 +66,13 @@ AllocateSoA("float[?]", MAX_VERTS, {
 })
 AllocateSoA("bool[?]", MAX_VERTS, {"Vert_Valid"})
 
--- 5. Triangle Data (Faces, Colors, and Shading Channels)
+-- 5 Triangle Data (Faces, Colors, and Shading Channels)
 AllocateSoA("int[?]", MAX_TRIS, {"Tri_V1", "Tri_V2", "Tri_V3"})
 AllocateSoA("float[?]", MAX_TRIS, {"Tri_A", "Tri_R", "Tri_G", "Tri_B"})
 AllocateSoA("uint32_t[?]", MAX_TRIS, {"Tri_Color", "Tri_BakedColor"})
+-- Output from C Assembly
+AllocateSoA("bool[?]", MAX_TRIS, { "Tri_Valid" })
+AllocateSoA("uint32_t[?]", MAX_TRIS, { "Tri_ShadedColor" })
 
 -- 6. Physics Collision (Bounding Volumes)
 AllocateSoA("float[?]", MAX_BOUND_SPHERES, {"BoundSphere_X", "BoundSphere_Y", "BoundSphere_Z", "BoundSphere_RSq"})
