@@ -110,7 +110,8 @@ function love.draw()
     love.graphics.setBlendMode("replace")
     love.graphics.draw(ScreenImage, 0, 0)
     love.graphics.setBlendMode("alpha")
-
+    love.graphics.setColor(0, 1, 0.5, 1)
+    love.graphics.print(love.timer.getFPS())
     -- SPARSE TERMINAL OUTPUT (Every 2 seconds)
     if print_timer >= 2.0 then
         BENCH.PrintAndReset("Rasterizer")
