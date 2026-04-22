@@ -50,16 +50,18 @@ end
 
 -- Define the C-interface for LuaJIT
 ffi.cdef[[
-    void simd_transform_vertices(
+    void simd_project_vertices(
         int count,
         float* lx, float* ly, float* lz,
-        float* wx, float* wy, float* wz,
+        float* px, float* py, float* pz, bool* valid,
         float ox, float oy, float oz,
-        float rx, float ry, float rz,
-        float ux, float uy, float uz,
-        float fx, float fy, float fz
+        float rx, float ry, float rz, float ux, float uy, float uz, float fx, float fy, float fz,
+        float cpx, float cpy, float cpz,
+        float cfw_x, float cfw_y, float cfw_z,
+        float crt_x, float crt_z,
+        float cup_x, float cup_y, float cup_z,
+        float cam_fov, float half_w, float half_h
     );
 ]]
-
 -- Execute and return the loaded library
 return load_simd_library()

@@ -41,40 +41,20 @@ return function(
             local fx, fy, fz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
             local vStart, vCount = Obj_VertStart[id], Obj_VertCount[id]
 
+            -- THE SIMD VOLLEY: Local -> World -> Screen in one shot
             -- ==========================================================
-            -- [NEW] PASS 1: AVX SIMD Local-to-World Transform
-            -- ==========================================================
-            VibeMath.simd_transform_vertices(
+            VibeMath.simd_project_vertices(
                 vCount,
                 Vert_LX + vStart, Vert_LY + vStart, Vert_LZ + vStart,
-                Vert_WX + vStart, Vert_WY + vStart, Vert_WZ + vStart, -- Now using our new memory
-                ox, oy, oz, rx, ry, rz, ux, uy, uz, fx, fy, fz
+                Vert_PX + vStart, Vert_PY + vStart, Vert_PZ + vStart, Vert_Valid + vStart,
+                ox, oy, oz, rx, ry, rz, ux, uy, uz, fx, fy, fz,
+                cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z,
+                cam_fov, HALF_W, HALF_H
             )
 
             -- ==========================================================
-            -- [NEW] PASS 2: World-to-Screen Projection
+            -- PASS 3: Triangle Winding & Rasterization
             -- ==========================================================
-            for i = 0, vCount - 1 do
-                local idx = vStart + i
-
-                -- Read the World coordinates the C library just wrote
-                local wx, wy, wz = Vert_WX[idx], Vert_WY[idx], Vert_WZ[idx]
-
-                local vdx, vdy, vdz = wx-cpx, wy-cpy, wz-cpz
-                local cz = vdx*cfw_x + vdy*cfw_y + vdz*cfw_z
-
-                if cz < 0.1 then
-                    Vert_Valid[idx] = false
-                else
-                    local f = cam_fov / cz
-                    Vert_PX[idx] = HALF_W + (vdx*crt_x + vdz*crt_z) * f
-                    Vert_PY[idx] = HALF_H + (vdx*cup_x + vdy*cup_y + vdz*cup_z) * f
-                    Vert_PZ[idx] = cz * 1.004
-                    Vert_Valid[idx] = true
-                end
-            end
-
-            -- ... [Keep Triangle Winding/Shading/Rasterizer Loop as is!] ...
             local tStart, tCount = Obj_TriStart[id], Obj_TriCount[id]
             for i = 0, tCount - 1 do
                 local idx = tStart + i
