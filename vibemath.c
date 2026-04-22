@@ -197,3 +197,30 @@ EXPORT void process_triangles_twotone(
         tri_valid[i] = true;
     }
 }
+// Blasts 8 pixels and 8 Z-values to memory per clock cycle
+EXPORT void simd_clear_buffers(
+    uint32_t* screen, 
+    float* zbuffer, 
+    uint32_t clear_color, 
+    float clear_z, 
+    int pixel_count
+) {
+    // 1. Pack 8 identical colors and 8 identical Z-values into AVX registers
+    __m256i v_color = _mm256_set1_epi32(clear_color);
+    __m256 v_z = _mm256_set1_ps(clear_z);
+
+    int i = 0;
+    // 2. The AVX Loop (Blindly overwrite 8 pixels at a time)
+    for (; i <= pixel_count - 8; i += 8) {
+        // Cast the screen pointer to a 256-bit integer pointer and fire!
+        _mm256_storeu_si256((__m256i*)&screen[i], v_color);
+        // Fire the Z-buffer floats!
+        _mm256_storeu_ps(&zbuffer[i], v_z);
+    }
+
+    // 3. The Tail Loop (For any leftover pixels if screen isn't perfectly divisible by 8)
+    for (; i < pixel_count; i++) {
+        screen[i] = clear_color;
+        zbuffer[i] = clear_z;
+    }
+}

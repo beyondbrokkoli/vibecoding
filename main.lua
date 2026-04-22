@@ -1,6 +1,7 @@
 require("memory")
 local ffi = require("ffi")
 local Sequence = require("sequence")
+local VibeMath = require("load_simd")
 
 local CANVAS_W, CANVAS_H
 local ScreenBuffer, ScreenImage, ScreenPtr
@@ -96,9 +97,10 @@ function love.update(dt)
 end
 
 function love.draw()
-    ffi.fill(ScreenPtr, CANVAS_W * CANVAS_H * 4, 0)
-    ffi.fill(ZBuffer, CANVAS_W * CANVAS_H * 4, 0x7F)
-
+    -- 0xFF000000 = Solid Black Color
+    -- 99999.0 = A massive float to reset the Depth Buffer
+    -- CANVAS_W * CANVAS_H = Total number of pixels
+    VibeMath.simd_clear_buffers(ScreenPtr, ZBuffer, 0xFF000000, 99999.0, CANVAS_W * CANVAS_H)
     Sequence.RunPhase("Cull", MainCamera)
 
     -- THE BENCHMARK WRAPPER

@@ -73,6 +73,13 @@ ffi.cdef[[
         float fx, float fy, float fz,
         float sun_x, float sun_y, float sun_z
     );
+    void simd_clear_buffers(
+        uint32_t* screen,
+        float* zbuffer,
+        uint32_t clear_color,
+        float clear_z,
+        int pixel_count
+    );
 ]]
 -- Execute and return the loaded library
 return load_simd_library()
