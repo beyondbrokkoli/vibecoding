@@ -1,6 +1,6 @@
 local bit = require("bit")
 local math_sin, math_cos, math_pi = math.sin, math.cos, math.pi
-local RenderMeshTwoToneFactory = require("render_twotone")
+local RenderMeshTwoToneFactory = require("render")
 local VibeMath = require("load") -- Add this!
 
 return function(
@@ -87,14 +87,15 @@ return function(
         local t = time_alive * 0.05
         local eversion = math_cos(t)
         local bulge = math_sin(t)
-        local vStart = Obj_VertStart[id]
 
-        -- THE C-KERNEL TAKEOVER
+        local vStart = Obj_VertStart[id]
         local r_base = 3500
-        VibeMath.generate_smales_paradox_vertices(
+
+        -- THE LIVING METAL C-KERNEL TAKEOVER
+        VibeMath.generate_living_metal_vertices(
             Vert_LX + vStart, Vert_LY + vStart, Vert_LZ + vStart,
             LATITUDES, LONGITUDES,
-            eversion, bulge, r_base
+            r_base, time_alive
         )
     end
 

@@ -22,7 +22,7 @@ function love.load()
     -- 1. The Camera
     Sequence.LoadModule("camera", MainCamera)
 
-    Sequence.LoadModule("smales_paradox",
+    Sequence.LoadModule("metal",
         Memory, MainCamera,
         Obj_X, Obj_Y, Obj_Z, Obj_Radius,
         Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,

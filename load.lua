@@ -104,6 +104,11 @@ ffi.cdef[[
         uint32_t* screen_buffer, float* z_buffer,
         int canvas_w, int canvas_h
     );
+    void generate_living_metal_vertices(
+        float* lx, float* ly, float* lz,
+        int latitudes, int longitudes,
+        float base_radius, float time_alive
+    );
 ]]
 -- Execute and return the loaded library
 return load_simd_library()
