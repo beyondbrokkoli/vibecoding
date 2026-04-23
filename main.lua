@@ -22,16 +22,22 @@ function love.load()
     -- 1. The Camera
     Sequence.LoadModule("camera", MainCamera)
 
-    Sequence.LoadModule("swarm",
+    --Sequence.LoadModule("swarm",
+        --Memory, MainCamera,
+        --Obj_X, Obj_Y, Obj_Z, Obj_Radius,
+        --Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
+        --Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount,
+        --Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid,
+        --Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor,
+        --Tri_Valid, Tri_ShadedColor -- <--- ADD THESE TWO!
+    --)
+    Sequence.LoadModule("scene_manager",
         Memory, MainCamera,
-        Obj_X, Obj_Y, Obj_Z, Obj_Radius,
-        Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
+        Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
         Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount,
         Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid,
-        Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor,
-        Tri_Valid, Tri_ShadedColor -- <--- ADD THESE TWO!
+        Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor, Tri_Valid, Tri_ShadedColor
     )
-
     Sequence.RunPhase("Init")
 end
 
