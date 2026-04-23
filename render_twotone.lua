@@ -1,83 +1,43 @@
--- ========================================================================
--- render_mesh_twotone.lua
--- Pure 3D-to-2D Projection & Culling Pipeline.
--- Dynamic Face-Color Swapping & Real-Time Lambertian Flat Shading
--- ========================================================================
 local ffi = require("ffi")
-
 local VibeMath = require("load")
-
-local max, min, floor, abs, sqrt = math.max, math.min, math.floor, math.abs, math.sqrt
 
 return function(
     Obj_X, Obj_Y, Obj_Z, Obj_Radius,
     Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
     Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount,
     Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid,
-    Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor
+    Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor,
+    Tri_Valid, Tri_ShadedColor -- <--- Explicitly added to fix the signature neglect!
 )
-    return function(start_id, end_id, MainCamera, CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
-        local cpx, cpy, cpz = MainCamera.x, MainCamera.y, MainCamera.z
-        local cfw_x, cfw_y, cfw_z = MainCamera.fwx, MainCamera.fwy, MainCamera.fwz
-        local crt_x, crt_z = MainCamera.rtx, MainCamera.rtz
-        local cup_x, cup_y, cup_z = MainCamera.upx, MainCamera.upy, MainCamera.upz
-        local cam_fov = MainCamera.fov
-        local HALF_W, HALF_H = CANVAS_W * 0.5, CANVAS_H * 0.5
+    -- 1. Create and populate the memory struct ONCE at scene creation
+    local render_mem = ffi.new("RenderMemory")
+    render_mem.Obj_X, render_mem.Obj_Y, render_mem.Obj_Z, render_mem.Obj_Radius = Obj_X, Obj_Y, Obj_Z, Obj_Radius
+    render_mem.Obj_FWX, render_mem.Obj_FWY, render_mem.Obj_FWZ = Obj_FWX, Obj_FWY, Obj_FWZ
+    render_mem.Obj_RTX, render_mem.Obj_RTY, render_mem.Obj_RTZ = Obj_RTX, Obj_RTY, Obj_RTZ
+    render_mem.Obj_UPX, render_mem.Obj_UPY, render_mem.Obj_UPZ = Obj_UPX, Obj_UPY, Obj_UPZ
+    render_mem.Obj_VertStart, render_mem.Obj_VertCount = Obj_VertStart, Obj_VertCount
+    render_mem.Obj_TriStart, render_mem.Obj_TriCount = Obj_TriStart, Obj_TriCount
 
-        -- [THE SUN] Directional Light pointing Down, Right, and Forward
+    render_mem.Vert_LX, render_mem.Vert_LY, render_mem.Vert_LZ = Vert_LX, Vert_LY, Vert_LZ
+    render_mem.Vert_PX, render_mem.Vert_PY, render_mem.Vert_PZ = Vert_PX, Vert_PY, Vert_PZ
+    render_mem.Vert_Valid = Vert_Valid
+
+    render_mem.Tri_V1, render_mem.Tri_V2, render_mem.Tri_V3 = Tri_V1, Tri_V2, Tri_V3
+    render_mem.Tri_BakedColor = Tri_BakedColor
+    render_mem.Tri_ShadedColor = Tri_ShadedColor or _G.Tri_ShadedColor
+    render_mem.Tri_Valid = Tri_Valid or _G.Tri_Valid
+
+    return function(start_id, end_id, MainCamera, CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
         local sun_x, sun_y, sun_z = 0.577, -0.577, 0.577
 
-        for id = start_id, end_id do
-            local r = Obj_Radius[id]
-            local ox, oy, oz = Obj_X[id], Obj_Y[id], Obj_Z[id]
-
-            local cz_center = (ox-cpx)*cfw_x + (oy-cpy)*cfw_y + (oz-cpz)*cfw_z
-            if cz_center + r < 0.1 then goto skip_tile end
-
-            -- Cache the Object's Rotation Matrix
-            local rx, ry, rz = Obj_RTX[id], Obj_RTY[id], Obj_RTZ[id]
-            local ux, uy, uz = Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id]
-            local fx, fy, fz = Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id]
-            local vStart, vCount = Obj_VertStart[id], Obj_VertCount[id]
-
-            -- THE SIMD VOLLEY: Local -> World -> Screen in one shot
-            -- ==========================================================
-            VibeMath.simd_project_vertices(
-                vCount,
-                Vert_LX + vStart, Vert_LY + vStart, Vert_LZ + vStart,
-                Vert_PX + vStart, Vert_PY + vStart, Vert_PZ + vStart, Vert_Valid + vStart,
-                ox, oy, oz, rx, ry, rz, ux, uy, uz, fx, fy, fz,
-                cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z,
-                cam_fov, HALF_W, HALF_H
-            )
-
-            -- ==========================================================
-            -- PASS 3: Triangle Assembly & Lighting (C-Kernel)
-            -- ==========================================================
-            local tStart, tCount = Obj_TriStart[id], Obj_TriCount[id]
-
-            VibeMath.process_triangles_twotone(
-                tCount,
-                Tri_V1 + tStart, Tri_V2 + tStart, Tri_V3 + tStart, Vert_Valid,
-                Vert_PX, Vert_PY, Vert_PZ,
-                Vert_LX, Vert_LY, Vert_LZ,
-                Tri_BakedColor + tStart, Tri_ShadedColor + tStart, Tri_Valid + tStart,
-                rx, ry, rz, ux, uy, uz, fx, fy, fz,
-                sun_x, sun_y, sun_z
-            )
-
-            -- ==========================================================
-            -- PASS 4: Rasterization Dispatch (C-Batch)
-            -- ==========================================================
-            VibeMath.rasterize_triangles_batch(
-                tCount,
-                Tri_V1 + tStart, Tri_V2 + tStart, Tri_V3 + tStart, Tri_Valid + tStart,
-                Vert_PX, Vert_PY, Vert_PZ,
-                Tri_ShadedColor + tStart,
-                ScreenPtr, ZBuffer,
-                CANVAS_W, CANVAS_H
-            )
-            ::skip_tile::
-        end
+        -- 2. FIRE THE BATCH 
+        VibeMath.simd_render_twotone_batch(
+            start_id, end_id,
+            MainCamera,
+            CANVAS_W * 0.5, CANVAS_H * 0.5,
+            sun_x, sun_y, sun_z,
+            render_mem, 
+            ScreenPtr, ZBuffer, CANVAS_W, CANVAS_H
+        )
     end
 end

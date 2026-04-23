@@ -1077,3 +1077,62 @@ EXPORT void simd_render_world_batch(
         );
     }
 }
+EXPORT void simd_render_twotone_batch(
+    int start_id, int end_id,
+    CameraState* cam,
+    float HALF_W, float HALF_H,
+    float sun_x, float sun_y, float sun_z,
+    RenderMemory* mem,
+    uint32_t* ScreenPtr, float* ZBuffer,
+    int CANVAS_W, int CANVAS_H
+) {
+    float cpx = cam->x, cpy = cam->y, cpz = cam->z;
+    float cfw_x = cam->fwx, cfw_y = cam->fwy, cfw_z = cam->fwz;
+    float crt_x = cam->rtx, crt_z = cam->rtz;
+    float cup_x = cam->upx, cup_y = cam->upy, cup_z = cam->upz;
+    float cam_fov = cam->fov;
+
+    for (int id = start_id; id <= end_id; id++) {
+        float r = mem->Obj_Radius[id];
+        float ox = mem->Obj_X[id], oy = mem->Obj_Y[id], oz = mem->Obj_Z[id];
+
+        float cz_center = (ox - cpx)*cfw_x + (oy - cpy)*cfw_y + (oz - cpz)*cfw_z;
+        if (cz_center + r < 0.1f) continue;
+
+        float rx = mem->Obj_RTX[id], ry = mem->Obj_RTY[id], rz = mem->Obj_RTZ[id];
+        float ux = mem->Obj_UPX[id], uy = mem->Obj_UPY[id], uz = mem->Obj_UPZ[id];
+        float fx = mem->Obj_FWX[id], fy = mem->Obj_FWY[id], fz = mem->Obj_FWZ[id];
+
+        int vStart = mem->Obj_VertStart[id], vCount = mem->Obj_VertCount[id];
+        int tStart = mem->Obj_TriStart[id], tCount = mem->Obj_TriCount[id];
+
+        simd_project_vertices(
+            vCount,
+            mem->Vert_LX + vStart, mem->Vert_LY + vStart, mem->Vert_LZ + vStart,
+            mem->Vert_PX + vStart, mem->Vert_PY + vStart, mem->Vert_PZ + vStart, mem->Vert_Valid + vStart,
+            ox, oy, oz, rx, ry, rz, ux, uy, uz, fx, fy, fz,
+            cpx, cpy, cpz, cfw_x, cfw_y, cfw_z, crt_x, crt_z, cup_x, cup_y, cup_z,
+            cam_fov, HALF_W, HALF_H
+        );
+
+        // ---> THE MAGIC SWAP IS RIGHT HERE <---
+        process_triangles_twotone(
+            tCount,
+            mem->Tri_V1 + tStart, mem->Tri_V2 + tStart, mem->Tri_V3 + tStart, mem->Vert_Valid,
+            mem->Vert_PX, mem->Vert_PY, mem->Vert_PZ,
+            mem->Vert_LX, mem->Vert_LY, mem->Vert_LZ,
+            mem->Tri_BakedColor + tStart, mem->Tri_ShadedColor + tStart, mem->Tri_Valid + tStart,
+            rx, ry, rz, ux, uy, uz, fx, fy, fz,
+            sun_x, sun_y, sun_z
+        );
+
+        rasterize_triangles_batch(
+            tCount,
+            mem->Tri_V1 + tStart, mem->Tri_V2 + tStart, mem->Tri_V3 + tStart, mem->Tri_Valid + tStart,
+            mem->Vert_PX, mem->Vert_PY, mem->Vert_PZ,
+            mem->Tri_ShadedColor + tStart,
+            ScreenPtr, ZBuffer,
+            CANVAS_W, CANVAS_H
+        );
+    }
+}

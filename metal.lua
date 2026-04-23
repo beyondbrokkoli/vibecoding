@@ -1,6 +1,6 @@
 local bit = require("bit")
 local math_sin, math_cos, math_pi = math.sin, math.cos, math.pi
-local RenderMeshTwoToneFactory = require("render_twotone")
+local RenderMeshTwoToneFactory = require("render")
 local VibeMath = require("load")
 
 return function(
@@ -9,7 +9,8 @@ return function(
     Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
     Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount,
     Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid,
-    Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor
+    Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor,
+    Tri_Valid, Tri_ShadedColor -- <--- ADDED HERE
 )
     local Metal = {}
     local my_obj_start
@@ -27,7 +28,8 @@ return function(
         Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
         Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount,
         Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid,
-        Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor
+        Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor,
+        Tri_Valid, Tri_ShadedColor -- <--- PASSED HERE
     )
 
     function Metal.Init()

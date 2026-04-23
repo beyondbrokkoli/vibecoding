@@ -153,7 +153,7 @@ ffi.cdef[[
         float cx, float cy, float cz,
         float time, float dt, float blend
     );
-typedef struct {
+    typedef struct {
         float *Obj_X, *Obj_Y, *Obj_Z, *Obj_Radius;
         float *Obj_FWX, *Obj_FWY, *Obj_FWZ;
         float *Obj_RTX, *Obj_RTY, *Obj_RTZ;
@@ -175,6 +175,15 @@ typedef struct {
         float sun_x, float sun_y, float sun_z,
         RenderMemory* mem,
         uint32_t* ScreenPtr, float* ZBuffer, int CANVAS_W, int CANVAS_H
+    );
+    void simd_render_twotone_batch(
+        int start_id, int end_id,
+        CameraState* cam,
+        float HALF_W, float HALF_H,
+        float sun_x, float sun_y, float sun_z,
+        RenderMemory* mem,
+        uint32_t* ScreenPtr, float* ZBuffer,
+        int CANVAS_W, int CANVAS_H
     );
 ]]
 
