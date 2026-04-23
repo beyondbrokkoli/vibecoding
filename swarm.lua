@@ -91,17 +91,14 @@ function Swarm.Tick(dt)
         end
         space_pressed_last = space_down
 
-        -- Explosions (Still work in ALL modes!)
+        -- Explosions (Trigger from the center of the room: 0, 5000, 0)
         if love.mouse.isDown(1) then
-            local ex = MainCamera.x + MainCamera.fwx * 10000
-            local ey = MainCamera.y + MainCamera.fwy * 10000
-            local ez = MainCamera.z + MainCamera.fwz * 10000
+            local ex, ey, ez = 0, 5000, 0
             VibeMath.simd_apply_explosion(PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, ex, ey, ez, 5000000.0 * dt, 15000.0)
         end
+
         if love.mouse.isDown(2) then
-            local ex = MainCamera.x + MainCamera.fwx * 10000
-            local ey = MainCamera.y + MainCamera.fwy * 10000
-            local ez = MainCamera.z + MainCamera.fwz * 10000
+            local ex, ey, ez = 0, 5000, 0
             VibeMath.simd_apply_explosion(PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, ex, ey, ez, -4000000.0 * dt, 20000.0)
         end
 

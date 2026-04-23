@@ -71,9 +71,29 @@ function love.draw()
     end
 end
 
-
-
 function love.keypressed(key)
-    if key == "escape" then love.event.quit() end
+    if key == "escape" then 
+        -- If mouse is locked, unlock it. Otherwise, quit the game.
+        if love.mouse.getRelativeMode() then
+            love.mouse.setRelativeMode(false)
+        else
+            love.event.quit() 
+        end
+    end
+    if key == "tab" then
+        love.mouse.setRelativeMode(not love.mouse.getRelativeMode())
+    end
     Sequence.RunPhase("KeyPressed", key)
+end
+
+-- Pass mouse movement directly to the Sequence
+function love.mousemoved(x, y, dx, dy)
+    Sequence.RunPhase("MouseMoved", x, y, dx, dy)
+end
+
+-- Auto-lock the mouse when the user clicks the window
+function love.mousepressed(x, y, button)
+    if not love.mouse.getRelativeMode() then
+        love.mouse.setRelativeMode(true)
+    end
 end
