@@ -11,29 +11,37 @@ return function(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Ob
     local VCOUNT = PCOUNT * 4
     local TCOUNT = PCOUNT * 4
 
-    local target_state = 0 -- 0 = Physics Floor, 1 = Living Metal
-    local current_metal_blend = 0.0
-    local current_gravity_blend = 1.0
+    -- The Unified State Machine
+    local target_state = 0 
+    -- 0 = Floor Physics
+    -- 1 = Bundle (Sphere)
+    -- 2 = Galaxy
+    -- 3 = Tornado
+    -- 4 = Gyroscope
+    -- 5 = Living Metal (Boiling Sphere)
+    -- 6 = Smale's Paradox (Inside-Out Sphere)
+
+    -- DOD Lerping Weights
+    local gravity_blend = 1.0
+    local metal_blend = 0.0
+    local paradox_blend = 0.0
+
     local time_alive = 0.0
     local space_pressed_last = false
 
-    -- Dedicated Physics Arrays (Bypassing main SoA for maximum speed)
+    -- Dedicated Physics Arrays
     local p_px = ffi.new("float[?]", PCOUNT)
     local p_py = ffi.new("float[?]", PCOUNT)
     local p_pz = ffi.new("float[?]", PCOUNT)
     local p_vx = ffi.new("float[?]", PCOUNT)
     local p_vy = ffi.new("float[?]", PCOUNT)
     local p_vz = ffi.new("float[?]", PCOUNT)
-    local p_seed = ffi.new("float[?]", PCOUNT) -- NEW
-
-    local current_shape = 0
-    local space_pressed_last = false
-    local time_alive = 0.0
+    local p_seed = ffi.new("float[?]", PCOUNT)
 
     local DrawMesh = RenderMeshFactory(
-        Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ, 
-        Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount, 
-        Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid, 
+        Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
+        Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount,
+        Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid,
         Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor
     )
 
@@ -42,16 +50,14 @@ return function(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Ob
         local id = swarm_obj_id
         local vStart, tStart = Memory.ClaimGeometry(VCOUNT, TCOUNT)
 
-        -- One Giant Object to hold the entire swarm
         Obj_X[id], Obj_Y[id], Obj_Z[id] = 0, 0, 0
-        Obj_Radius[id] = 999999 -- So large it never gets culled by the camera
+        Obj_Radius[id] = 999999
         Obj_FWX[id], Obj_FWY[id], Obj_FWZ[id] = 0, 0, 1
         Obj_RTX[id], Obj_RTY[id], Obj_RTZ[id] = 1, 0, 0
         Obj_UPX[id], Obj_UPY[id], Obj_UPZ[id] = 0, 1, 0
         Obj_VertStart[id], Obj_VertCount[id] = vStart, VCOUNT
         Obj_TriStart[id], Obj_TriCount[id] = tStart, TCOUNT
 
-        -- Scatter the particles
         for i = 0, PCOUNT - 1 do
             p_px[i] = (math.random() - 0.5) * 20000
             p_py[i] = (math.random() - 0.5) * 10000 + 5000
@@ -59,130 +65,91 @@ return function(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Ob
             p_vx[i] = (math.random() - 0.5) * 5000
             p_vy[i] = (math.random() - 0.5) * 5000
             p_vz[i] = (math.random() - 0.5) * 5000
-            p_seed[i] = i / (PCOUNT - 1) -- Assign identity (0.0 to 1.0)
+            p_seed[i] = i / (PCOUNT - 1)
         end
 
-        -- Build the Triangles permanently
         local tIdx = tStart
-        local col1 = bit.bor(0xFF000000, bit.lshift(255, 16), 0, 0) -- Blue
-        local col2 = bit.bor(0xFF000000, 0, bit.lshift(255, 8), 0)  -- Green
-        local col3 = bit.bor(0xFF000000, 0, 0, 255)                 -- Red
-        local col4 = bit.bor(0xFF000000, 0, bit.lshift(255, 8), 255)-- Yellow
+        local col1 = bit.bor(0xFF000000, bit.lshift(255, 16), 0, 0)
+        local col2 = bit.bor(0xFF000000, 0, bit.lshift(255, 8), 0) 
+        local col3 = bit.bor(0xFF000000, 0, 0, 255)                 
+        local col4 = bit.bor(0xFF000000, 0, bit.lshift(255, 8), 255)
 
         for i = 0, PCOUNT - 1 do
             local base = vStart + (i * 4)
-            -- Front Left
             Tri_V1[tIdx], Tri_V2[tIdx], Tri_V3[tIdx] = base+0, base+1, base+2
             Tri_BakedColor[tIdx] = col1; tIdx = tIdx + 1
-            -- Front Right
             Tri_V1[tIdx], Tri_V2[tIdx], Tri_V3[tIdx] = base+0, base+2, base+3
             Tri_BakedColor[tIdx] = col2; tIdx = tIdx + 1
-            -- Back
             Tri_V1[tIdx], Tri_V2[tIdx], Tri_V3[tIdx] = base+0, base+3, base+1
             Tri_BakedColor[tIdx] = col3; tIdx = tIdx + 1
-            -- Bottom
             Tri_V1[tIdx], Tri_V2[tIdx], Tri_V3[tIdx] = base+1, base+3, base+2
             Tri_BakedColor[tIdx] = col4; tIdx = tIdx + 1
         end
     end
+
     function Swarm.Tick(dt)
         time_alive = time_alive + dt
 
-        -- 1. Transition State Machine (Spacebar toggles target state)
+        -- 1. Spacebar State Cycler (0 through 6)
         local space_down = love.keyboard.isDown("space")
         if space_down and not space_pressed_last then
-            target_state = (target_state == 0) and 1 or 0
+            target_state = target_state + 1
+            if target_state > 6 then target_state = 0 end
         end
         space_pressed_last = space_down
 
-        -- 2. Deterministic Lerping (The "Slop-Gate" approach)
-        -- Ease parameters toward the target state smoothly over time
-        if target_state == 1 then
-            current_metal_blend = math.min(1.0, current_metal_blend + dt * 0.5) -- Takes 2 seconds to boil
-            current_gravity_blend = math.max(0.0, current_gravity_blend - dt * 2.0) -- Gravity turns off fast
-        else
-            current_metal_blend = math.max(0.0, current_metal_blend - dt * 2.0) -- Stops boiling fast
-            current_gravity_blend = math.min(1.0, current_gravity_blend + dt * 1.0) -- Gravity returns
-        end
+        -- 2. Smooth DOD Blending
+        -- Gravity only rules in State 0
+        if target_state == 0 then gravity_blend = math.min(1.0, gravity_blend + dt * 2.0)
+        else gravity_blend = math.max(0.0, gravity_blend - dt * 2.0) end
 
-        -- Explosions
+        -- Metal only boils in State 5
+        if target_state == 5 then metal_blend = math.min(1.0, metal_blend + dt * 0.5)
+        else metal_blend = math.max(0.0, metal_blend - dt * 2.0) end
+
+        -- Paradox only everts in State 6
+        if target_state == 6 then paradox_blend = math.min(1.0, paradox_blend + dt * 0.5)
+        else paradox_blend = math.max(0.0, paradox_blend - dt * 2.0) end
+
+        -- 3. Explosions (Work in all states!)
         if love.mouse.isDown(1) then
-            local ex, ey, ez = 0, 5000, 0
-            VibeMath.simd_apply_explosion(PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, ex, ey, ez, 5000000.0 * dt, 15000.0)
+            VibeMath.simd_apply_explosion(PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, 0, 5000, 0, 5000000.0 * dt, 15000.0)
         end
         if love.mouse.isDown(2) then
-            local ex, ey, ez = 0, 5000, 0
-            VibeMath.simd_apply_explosion(PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, ex, ey, ez, -4000000.0 * dt, 20000.0)
+            VibeMath.simd_apply_explosion(PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, 0, 5000, 0, -4000000.0 * dt, 20000.0)
         end
 
-        -- 3. KERNEL DISPATCH (Zero crust. We run both kernels scaled by their blend weight)
-        if current_gravity_blend > 0.0 then
-            -- Fall back to floor
+        -- 4. KERNEL DISPATCH
+        if gravity_blend > 0.0 then
             local cage = UniverseCage
             VibeMath.simd_update_physics_swarm(
                 PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz,
                 cage.minX, cage.maxX, cage.minY, cage.maxY, cage.minZ, cage.maxZ,
-                dt, -8000.0 * current_gravity_blend
+                dt, -8000.0 * gravity_blend
             )
         end
 
-        if current_gravity_blend < 1.0 then
-            -- Assemble into Living Metal
-            VibeMath.simd_update_swarm_living_metal(
-                PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, p_seed,
-                0, 5000, 0, time_alive, dt, current_metal_blend
-            )
+        if gravity_blend < 1.0 then
+            -- Determine which shape kernel to map target coordinates
+            if target_state >= 1 and target_state <= 4 then
+                VibeMath.simd_update_swarm_attractors(
+                    PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, p_seed,
+                    0, 5000, 0, time_alive, dt, target_state
+                )
+            elseif target_state == 5 then
+                VibeMath.simd_update_swarm_living_metal(
+                    PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, p_seed,
+                    0, 5000, 0, time_alive, dt, metal_blend
+                )
+            elseif target_state == 6 then
+                VibeMath.simd_update_swarm_paradox(
+                    PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, p_seed,
+                    0, 5000, 0, time_alive, dt, paradox_blend
+                )
+            end
         end
 
-        -- 4. Final Geometry Generation
-        local vStart = Obj_VertStart[swarm_obj_id]
-        VibeMath.generate_swarm_geometry(
-            PCOUNT, p_px, p_py, p_pz,
-            Vert_LX + vStart, Vert_LY + vStart, Vert_LZ + vStart,
-            120.0
-        )
-    end
-function Swarm.OLD_Tick(dt)
-        time_alive = time_alive + dt
-
-        -- Shape State Machine
-        local space_down = love.keyboard.isDown("space")
-        if space_down and not space_pressed_last then
-            current_shape = current_shape + 1
-            if current_shape > 4 then current_shape = 0 end -- Loop back to Physics
-        end
-        space_pressed_last = space_down
-
-        -- Explosions (Trigger from the center of the room: 0, 5000, 0)
-        if love.mouse.isDown(1) then
-            local ex, ey, ez = 0, 5000, 0
-            VibeMath.simd_apply_explosion(PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, ex, ey, ez, 5000000.0 * dt, 15000.0)
-        end
-
-        if love.mouse.isDown(2) then
-            local ex, ey, ez = 0, 5000, 0
-            VibeMath.simd_apply_explosion(PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, ex, ey, ez, -4000000.0 * dt, 20000.0)
-        end
-
-        -- KERNEL DISPATCH
-        if current_shape == 0 then
-            -- MODE 0: Free-fall Physics
-            local cage = UniverseCage
-            VibeMath.simd_update_physics_swarm(
-                PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz,
-                cage.minX, cage.maxX, cage.minY, cage.maxY, cage.minZ, cage.maxZ,
-                dt, -8000.0
-            )
-        else
-            -- MODE 1-4: Attractor Shapes
-            -- Target the center of the cage (0, 5000, 0)
-            VibeMath.simd_update_swarm_attractors(
-                PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, p_seed,
-                0, 5000, 0, time_alive, dt, current_shape
-            )
-        end
-
-        -- Generate final triangles
+        -- 5. Output Geometry
         local vStart = Obj_VertStart[swarm_obj_id]
         VibeMath.generate_swarm_geometry(
             PCOUNT, p_px, p_py, p_pz,

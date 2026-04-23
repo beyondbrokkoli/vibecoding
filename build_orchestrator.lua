@@ -3,23 +3,23 @@ local function compile_simd_libraries()
 
     -- 1. Compile for Linux (.so)
     -- ULTIMA PLATIN (AVX2/FMA enabled)
-    local linux_cmd_v3 = "gcc -O3 -mavx -mavx2 -mfma -shared -fPIC vibemath.c -o libvibemath.so"
+    local linux_cmd = "gcc -O3 -mavx -mavx2 -mfma -shared -fPIC vibemath.c -o libvibemath.so"
     -- LEGACY BASELINE (Strictly generic x86-64, no AVX)
-    local linux_cmd_legacy = "gcc -O3 -march=x86-64 -shared -fPIC vibemath_legacy.c -o libvibemath_legacy.so"
+    -- local linux_cmd_legacy = "gcc -O3 -march=x86-64 -shared -fPIC vibemath_legacy.c -o libvibemath_legacy.so"
 
     print("  |- Building Linux shared objects (AVX2 & Legacy)...")
-    os.execute(linux_cmd_v3)
-    os.execute(linux_cmd_legacy)
+    os.execute(linux_cmd)
+    -- os.execute(linux_cmd_legacy)
 
     -- 2. Compile for Windows (.dll) using MinGW Cross-Compiler
     -- ULTIMA PLATIN (AVX2/FMA enabled)
-    local win_cmd_a = "x86_64-w64-mingw32-gcc -O3 -mavx -mavx2 -mfma -shared -fPIC vibemath.c -o vibemath.dll"
+    local win_cmd = "x86_64-w64-mingw32-gcc -O3 -mavx -mavx2 -mfma -shared -fPIC vibemath.c -o vibemath.dll"
     -- LEGACY BASELINE (Strictly generic x86-64, no AVX)
-    local win_cmd_b = "x86_64-w64-mingw32-gcc -O3 -march=x86-64 -shared -fPIC vibemath_legacy.c -o vibemath_legacy.dll"
+    -- local win_cmd_b = "x86_64-w64-mingw32-gcc -O3 -march=x86-64 -shared -fPIC vibemath_legacy.c -o vibemath_legacy.dll"
 
     print("  |- Cross-compiling Windows DLLs (AVX2 & Legacy)...")
-    os.execute(win_cmd_a)
-    os.execute(win_cmd_b)
+    os.execute(win_cmd)
+    -- os.execute(win_cmd_b)
 end
 local function minify_lua(content)
     local lines = {}

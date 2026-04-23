@@ -6,6 +6,7 @@ local ffi = require("ffi")
 
 local function load_simd_library()
     -- 1. Determine OS extension
+    -- legacy cpu disabled
     local lib_name = "vibemath"
     if jit.os == "Windows" then
         lib_name = lib_name .. ".dll"
