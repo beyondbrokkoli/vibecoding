@@ -21,6 +21,89 @@ local function compile_simd_libraries()
     os.execute(win_cmd)
     -- os.execute(win_cmd_b)
 end
+local function minify_c(content)
+    -- 1. Strip out multi-line comments (non-greedy)
+    content = content:gsub("/%*.-%*/", "")
+
+    local minified_string = ""
+    local in_multiline_macro = false
+
+    for line in content:gmatch("[^\r\n]+") do
+        local clean_line = line
+        
+        -- 2. Strip single-line comments // (respecting strings)
+        local s = clean_line:find("//", 1, true)
+        if s then
+            local prefix = clean_line:sub(1, s - 1)
+            local _, quote_count = prefix:gsub('"', '"')
+            if quote_count % 2 == 0 then
+                clean_line = prefix
+            end
+        end
+
+        -- 3. Squash whitespace and trim
+        clean_line = clean_line:gsub("[ \t]+", " ")
+        clean_line = clean_line:match("^%s*(.-)%s*$")
+
+        if clean_line ~= "" then
+            -- 4. Check for preprocessor directives or macro continuations
+            if clean_line:sub(1, 1) == "#" or in_multiline_macro then
+                
+                -- Directives MUST have a newline
+                minified_string = minified_string .. clean_line .. "\n"
+                
+                -- Check if this macro spans multiple lines using a trailing backslash
+                if clean_line:sub(-1) == "\\" then
+                    in_multiline_macro = true
+                else
+                    in_multiline_macro = false
+                end
+            else
+                -- 5. Normal C code: Squash it! 
+                -- Just append a space so tokens don't merge (e.g., "int""main" -> "int main")
+                minified_string = minified_string .. clean_line .. " "
+            end
+        end
+    end
+
+    if minified_string == "" then return "/* [EMPTY] */" end
+    return minified_string
+end
+local function strip_to_target_std_output_c(content)
+    -- 1. Strip out multi-line comments (non-greedy match)
+    content = content:gsub("/%*.-%*/", "")
+
+    local lines = {}
+    for line in content:gmatch("[^\r\n]+") do
+        local clean_line = line
+        
+        -- 2. Find single-line comments
+        local s = clean_line:find("//", 1, true)
+        if s then
+            local prefix = clean_line:sub(1, s - 1)
+            -- Check if the '//' is inside a string by counting preceding quotes
+            local _, quote_count = prefix:gsub('"', '"')
+            if quote_count % 2 == 0 then
+                clean_line = prefix
+            end
+        end
+
+        -- 3. Squash tabs/multiple spaces into a single space
+        clean_line = clean_line:gsub("[ \t]+", " ")
+        -- 4. Trim leading and trailing whitespace
+        clean_line = clean_line:match("^%s*(.-)%s*$")
+
+        if clean_line ~= "" then
+            table.insert(lines, clean_line)
+        end
+    end
+
+    if #lines == 0 then return "/* [EMPTY OR ALL COMMENTS] */" end
+    
+    -- IMPORTANT: C needs newlines for #define and #include directives!
+    -- Do not use "; " like in the Lua minifier.
+    return table.concat(lines, "\n")
+end
 local function minify_lua(content)
     local lines = {}
     local d = "\45" .. "\45"
@@ -152,12 +235,34 @@ compile_simd_libraries()
 --for src, dest in pairs(raw_manifest) do
 --    if copy_file(src, dest) then print("  |- (Raw)      " .. src) end
 --end
+--print("\n--- AI SNAPSHOT ---")
+--local order = get_sorted_files()
+--for _, src in ipairs(order) do
+    --local f = io.open(src, "r")
+    --if f then
+        --print("@@@ FILE: " .. src .. " @@@\n" .. minify_lua(f:read("*all")))
+        --f:close()
+    --end
+--end
 print("\n--- AI SNAPSHOT ---")
 local order = get_sorted_files()
+
+-- Let's explicitly add vibemath.c to the snapshot since it's not in the Lua require() tree
+table.insert(order, "vibemath.c")
+
 for _, src in ipairs(order) do
     local f = io.open(src, "r")
     if f then
-        print("@@@ FILE: " .. src .. " @@@\n" .. minify_lua(f:read("*all")))
+        local content = f:read("*all")
+        local minified_content = ""
+
+        if src:match("%.c$") or src:match("%.h$") then
+            minified_content = minify_c(content)
+        else
+            minified_content = minify_lua(content)
+        end
+
+        print("@@@ FILE: " .. src .. " @@@\n" .. minified_content)
         f:close()
     end
 end
