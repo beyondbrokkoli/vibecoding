@@ -1,6 +1,6 @@
 local SwarmFactory = require("swarm")
 local MetalFactory = require("metal")
-local ParadoxFactory = require("smales_paradox")
+local BubbleFactory = require("bubble")
 
 return function(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ, Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount, Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid, Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor, Tri_Valid, Tri_ShadedColor)
 
@@ -8,16 +8,16 @@ return function(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Ob
     
     local swarm_scene = SwarmFactory(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ, Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount, Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid, Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor, Tri_Valid, Tri_ShadedColor)
     local metal_scene = MetalFactory(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ, Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount, Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid, Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor, Tri_Valid, Tri_ShadedColor)
-    local paradox_scene = ParadoxFactory(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ, Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount, Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid, Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor, Tri_Valid, Tri_ShadedColor)
+    local bubble_scene = BubbleFactory(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ, Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount, Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid, Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor, Tri_Valid, Tri_ShadedColor)
 
     local shared_time_alive = 0.0
-    local active_scene = 0 -- 0 = Swarm, 1 = Metal, 2 = Paradox
+    local active_scene = 0 -- 0 = Swarm, 1 = Metal, 2 = Bubble
     local enter_pressed_last = false
 
     function Manager.Init()
         swarm_scene.Init()
         metal_scene.Init()
-        paradox_scene.Init()
+        bubble_scene.Init()
     end
 
     function Manager.Tick(dt)
@@ -37,7 +37,7 @@ return function(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Ob
         elseif active_scene == 1 then
             metal_scene.Tick(dt, shared_time_alive)
         elseif active_scene == 2 then
-            paradox_scene.Tick(dt, shared_time_alive)
+            bubble_scene.Tick(dt, shared_time_alive)
         end
     end
 
@@ -47,7 +47,7 @@ return function(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Ob
         elseif active_scene == 1 then
             metal_scene.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
         elseif active_scene == 2 then
-            paradox_scene.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
+            bubble_scene.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
         end
     end
 
