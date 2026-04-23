@@ -153,6 +153,30 @@ ffi.cdef[[
         float cx, float cy, float cz,
         float time, float dt, float blend
     );
+typedef struct {
+        float *Obj_X, *Obj_Y, *Obj_Z, *Obj_Radius;
+        float *Obj_FWX, *Obj_FWY, *Obj_FWZ;
+        float *Obj_RTX, *Obj_RTY, *Obj_RTZ;
+        float *Obj_UPX, *Obj_UPY, *Obj_UPZ;
+        int *Obj_VertStart, *Obj_VertCount;
+        int *Obj_TriStart, *Obj_TriCount;
+
+        float *Vert_LX, *Vert_LY, *Vert_LZ;
+        float *Vert_PX, *Vert_PY, *Vert_PZ; bool *Vert_Valid;
+
+        int *Tri_V1, *Tri_V2, *Tri_V3;
+        uint32_t *Tri_BakedColor, *Tri_ShadedColor; bool *Tri_Valid;
+    } RenderMemory;
+
+    void simd_render_world_batch(
+        int start_id, int end_id,
+        CameraState* cam,
+        float HALF_W, float HALF_H,
+        float sun_x, float sun_y, float sun_z,
+        RenderMemory* mem,
+        uint32_t* ScreenPtr, float* ZBuffer, int CANVAS_W, int CANVAS_H
+    );
 ]]
+
 -- Execute and return the loaded library
 return load_simd_library()
