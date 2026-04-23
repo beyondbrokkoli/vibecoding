@@ -140,6 +140,18 @@ ffi.cdef[[
         float time, float dt,
         int shape_mode
     );
+    void simd_update_swarm_living_metal(
+        int count, float* px, float* py, float* pz,
+        float* vx, float* vy, float* vz, float* seed,
+        float cx, float cy, float cz,
+        float time, float dt, float noise_blend
+    );
+    void simd_update_swarm_paradox(
+        int count, float* px, float* py, float* pz,
+        float* vx, float* vy, float* vz, float* seed,
+        float cx, float cy, float cz,
+        float time, float dt, float blend
+    );
 ]]
 -- Execute and return the loaded library
 return load_simd_library()

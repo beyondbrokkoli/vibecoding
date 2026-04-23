@@ -820,3 +820,174 @@ EXPORT void simd_update_swarm_attractors(
         pz[i] += vz[i] * dt;
     }
 }
+// Ensure these helper functions are above the new kernel in vibemath.c!
+// (wrap_pi_avx, fast_sin_avx, fast_cos_avx, fast_trig_noise_avx)
+
+EXPORT void simd_update_swarm_living_metal(
+    int count, 
+    float* px, float* py, float* pz, 
+    float* vx, float* vy, float* vz, 
+    float* seed, // 0.0 to 1.0 particle ID
+    float cx, float cy, float cz, 
+    float time, float dt, 
+    float noise_blend // 0.0 = Perfect Sphere, 1.0 = Boiling Metal
+) {
+    __m256 v_cx = _mm256_set1_ps(cx), v_cy = _mm256_set1_ps(cy), v_cz = _mm256_set1_ps(cz);
+    __m256 v_time = _mm256_set1_ps(time);
+    __m256 v_blend = _mm256_set1_ps(noise_blend);
+    __m256 v_radius = _mm256_set1_ps(4000.0f);
+    __m256 v_max_disp = _mm256_set1_ps(3000.0f); // Max noise distortion
+    
+    __m256 v_dt = _mm256_set1_ps(dt);
+    __m256 v_k = _mm256_set1_ps(4.0f * dt); // Spring stiffness
+    __m256 v_damp = _mm256_set1_ps(0.92f);  // Friction
+
+    int i = 0;
+    // BLAST 8 PARTICLES PER CYCLE
+    for (; i <= count - 8; i += 8) {
+        __m256 v_s = _mm256_loadu_ps(&seed[i]);
+
+        // 1. FAST SPHERICAL MAPPING (Fibonacci-style distribution without acos)
+        // Z goes from 1.0 to -1.0 based on seed
+        __m256 v_sz = _mm256_fnmadd_ps(v_s, _mm256_set1_ps(2.0f), _mm256_set1_ps(1.0f)); 
+        // Radius at this Z: r_xy = sqrt(1.0 - z*z)
+        __m256 v_rxy = _mm256_sqrt_ps(_mm256_fnmadd_ps(v_sz, v_sz, _mm256_set1_ps(1.0f)));
+        // Phi rotates wildly based on seed
+        __m256 v_phi = _mm256_mul_ps(v_s, _mm256_set1_ps(10000.0f)); 
+        
+        __m256 v_sx = _mm256_mul_ps(v_rxy, fast_cos_avx(v_phi));
+        __m256 v_sy = _mm256_mul_ps(v_rxy, fast_sin_avx(v_phi));
+
+        // 2. EVALUATE 4D NOISE AT THE NORMALS
+        __m256 v_noise = fast_trig_noise_avx(v_sx, v_sy, v_sz, v_time);
+        
+        // 3. APPLY DISPLACEMENT (Using FMA to blend seamlessly!)
+        // displacement = noise * noise_blend * max_disp
+        __m256 v_disp = _mm256_mul_ps(v_noise, _mm256_mul_ps(v_blend, v_max_disp));
+        
+        // Target Pos = Center + Normal * (Radius + Displacement)
+        __m256 v_final_r = _mm256_add_ps(v_radius, v_disp);
+        __m256 v_tx = _mm256_fmadd_ps(v_sx, v_final_r, v_cx);
+        __m256 v_ty = _mm256_fmadd_ps(v_sy, v_final_r, v_cy);
+        __m256 v_tz = _mm256_fmadd_ps(v_sz, v_final_r, v_cz);
+
+        // 4. SPRING PHYSICS (Pull current pos toward Target Pos)
+        __m256 v_px = _mm256_loadu_ps(&px[i]);
+        __m256 v_py = _mm256_loadu_ps(&py[i]);
+        __m256 v_pz = _mm256_loadu_ps(&pz[i]);
+
+        __m256 v_vx = _mm256_loadu_ps(&vx[i]);
+        __m256 v_vy = _mm256_loadu_ps(&vy[i]);
+        __m256 v_vz = _mm256_loadu_ps(&vz[i]);
+
+        // v += (target - p) * k * dt; v *= damp;
+        v_vx = _mm256_mul_ps(_mm256_fmadd_ps(_mm256_sub_ps(v_tx, v_px), v_k, v_vx), v_damp);
+        v_vy = _mm256_mul_ps(_mm256_fmadd_ps(_mm256_sub_ps(v_ty, v_py), v_k, v_vy), v_damp);
+        v_vz = _mm256_mul_ps(_mm256_fmadd_ps(_mm256_sub_ps(v_tz, v_pz), v_k, v_vz), v_damp);
+
+        // p += v * dt;
+        v_px = _mm256_fmadd_ps(v_vx, v_dt, v_px);
+        v_py = _mm256_fmadd_ps(v_vy, v_dt, v_py);
+        v_pz = _mm256_fmadd_ps(v_vz, v_dt, v_pz);
+
+        _mm256_storeu_ps(&px[i], v_px);
+        _mm256_storeu_ps(&py[i], v_py);
+        _mm256_storeu_ps(&pz[i], v_pz);
+        _mm256_storeu_ps(&vx[i], v_vx);
+        _mm256_storeu_ps(&vy[i], v_vy);
+        _mm256_storeu_ps(&vz[i], v_vz);
+    }
+    
+    // (Scalar tail loop for remainder goes here, though PCOUNT = 10000 is perfectly mod 8)
+}
+EXPORT void simd_update_swarm_paradox(
+    int count, float* px, float* py, float* pz,
+    float* vx, float* vy, float* vz, float* seed,
+    float cx, float cy, float cz,
+    float time, float dt, float blend
+) {
+    __m256 v_cx = _mm256_set1_ps(cx), v_cy = _mm256_set1_ps(cy), v_cz = _mm256_set1_ps(cz);
+    __m256 v_base_radius = _mm256_set1_ps(4000.0f);
+    
+    // THE DOD BLENDING MATH (Calculated once outside the loop!)
+    // If blend=0: eversion=1.0, bulge=0.0
+    // If blend=1: eversion=cos(t), bulge=sin(t)
+    float t_scaled = time * 1.5f;
+    float eversion_scalar = 1.0f + blend * (cosf(t_scaled) - 1.0f);
+    float bulge_scalar = blend * sinf(t_scaled);
+    
+    __m256 v_eversion = _mm256_set1_ps(eversion_scalar);
+    __m256 v_bulge = _mm256_set1_ps(bulge_scalar);
+    
+    __m256 v_1_2 = _mm256_set1_ps(1.2f);
+    __m256 v_0_5 = _mm256_set1_ps(0.5f);
+    __m256 v_4_0 = _mm256_set1_ps(4.0f);
+    __m256 v_2_0 = _mm256_set1_ps(2.0f);
+    __m256 v_3_0 = _mm256_set1_ps(3.0f);
+    __m256 v_pi = _mm256_set1_ps(M_PI);
+    __m256 v_phi_mul = _mm256_set1_ps(M_PI * 2.0f * 100.0f); // Wrap phi around 100 times
+
+    __m256 v_dt = _mm256_set1_ps(dt);
+    __m256 v_k = _mm256_set1_ps(4.0f * dt);
+    __m256 v_damp = _mm256_set1_ps(0.92f);
+
+    int i = 0;
+    for (; i <= count - 8; i += 8) {
+        __m256 v_s = _mm256_loadu_ps(&seed[i]);
+        
+        // 1. Map seed to Theta [0, PI] and Phi [0, 2PI * 100]
+        __m256 v_theta = _mm256_mul_ps(v_s, v_pi);
+        __m256 v_phi = _mm256_mul_ps(v_s, v_phi_mul);
+        
+        __m256 v_ny = fast_cos_avx(v_theta);
+        __m256 v_sin_theta = fast_sin_avx(v_theta);
+        
+        __m256 v_nx = _mm256_mul_ps(v_sin_theta, fast_cos_avx(v_phi));
+        __m256 v_nz = _mm256_mul_ps(v_sin_theta, fast_sin_avx(v_phi));
+        
+        // 2. PARADOX MATH
+        __m256 v_waves = fast_cos_avx(_mm256_mul_ps(v_phi, v_4_0));
+        __m256 v_twist = fast_sin_avx(_mm256_mul_ps(v_theta, v_2_0));
+        
+        __m256 v_r_corr = _mm256_mul_ps(v_base_radius, 
+                          _mm256_mul_ps(v_bulge, 
+                          _mm256_mul_ps(v_waves, 
+                          _mm256_mul_ps(v_twist, v_1_2))));
+                          
+        __m256 v_r_main = _mm256_mul_ps(v_base_radius, v_eversion);
+        
+        // 3. APPLY DISPLACEMENT
+        __m256 v_tx = _mm256_fmadd_ps(v_nx, _mm256_add_ps(v_r_main, v_r_corr), v_cx);
+        __m256 v_tz = _mm256_fmadd_ps(v_nz, _mm256_add_ps(v_r_main, v_r_corr), v_cz);
+        
+        __m256 v_ty_offset = _mm256_mul_ps(fast_cos_avx(_mm256_mul_ps(v_theta, v_3_0)), 
+                             _mm256_mul_ps(v_base_radius, 
+                             _mm256_mul_ps(v_bulge, v_0_5)));
+                             
+        __m256 v_ty = _mm256_add_ps(v_cy, _mm256_fmadd_ps(v_ny, v_r_main, v_ty_offset));
+
+        // 4. SPRING PHYSICS
+        __m256 v_px = _mm256_loadu_ps(&px[i]);
+        __m256 v_py = _mm256_loadu_ps(&py[i]);
+        __m256 v_pz = _mm256_loadu_ps(&pz[i]);
+
+        __m256 v_vx = _mm256_loadu_ps(&vx[i]);
+        __m256 v_vy = _mm256_loadu_ps(&vy[i]);
+        __m256 v_vz = _mm256_loadu_ps(&vz[i]);
+
+        v_vx = _mm256_mul_ps(_mm256_fmadd_ps(_mm256_sub_ps(v_tx, v_px), v_k, v_vx), v_damp);
+        v_vy = _mm256_mul_ps(_mm256_fmadd_ps(_mm256_sub_ps(v_ty, v_py), v_k, v_vy), v_damp);
+        v_vz = _mm256_mul_ps(_mm256_fmadd_ps(_mm256_sub_ps(v_tz, v_pz), v_k, v_vz), v_damp);
+
+        v_px = _mm256_fmadd_ps(v_vx, v_dt, v_px);
+        v_py = _mm256_fmadd_ps(v_vy, v_dt, v_py);
+        v_pz = _mm256_fmadd_ps(v_vz, v_dt, v_pz);
+
+        _mm256_storeu_ps(&px[i], v_px);
+        _mm256_storeu_ps(&py[i], v_py);
+        _mm256_storeu_ps(&pz[i], v_pz);
+        _mm256_storeu_ps(&vx[i], v_vx);
+        _mm256_storeu_ps(&vy[i], v_vy);
+        _mm256_storeu_ps(&vz[i], v_vz);
+    }
+}

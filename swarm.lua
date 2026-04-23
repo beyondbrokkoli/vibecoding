@@ -11,6 +11,12 @@ return function(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Ob
     local VCOUNT = PCOUNT * 4
     local TCOUNT = PCOUNT * 4
 
+    local target_state = 0 -- 0 = Physics Floor, 1 = Living Metal
+    local current_metal_blend = 0.0
+    local current_gravity_blend = 1.0
+    local time_alive = 0.0
+    local space_pressed_last = false
+
     -- Dedicated Physics Arrays (Bypassing main SoA for maximum speed)
     local p_px = ffi.new("float[?]", PCOUNT)
     local p_py = ffi.new("float[?]", PCOUNT)
@@ -79,8 +85,64 @@ return function(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Ob
             Tri_BakedColor[tIdx] = col4; tIdx = tIdx + 1
         end
     end
+    function Swarm.Tick(dt)
+        time_alive = time_alive + dt
 
-function Swarm.Tick(dt)
+        -- 1. Transition State Machine (Spacebar toggles target state)
+        local space_down = love.keyboard.isDown("space")
+        if space_down and not space_pressed_last then
+            target_state = (target_state == 0) and 1 or 0
+        end
+        space_pressed_last = space_down
+
+        -- 2. Deterministic Lerping (The "Slop-Gate" approach)
+        -- Ease parameters toward the target state smoothly over time
+        if target_state == 1 then
+            current_metal_blend = math.min(1.0, current_metal_blend + dt * 0.5) -- Takes 2 seconds to boil
+            current_gravity_blend = math.max(0.0, current_gravity_blend - dt * 2.0) -- Gravity turns off fast
+        else
+            current_metal_blend = math.max(0.0, current_metal_blend - dt * 2.0) -- Stops boiling fast
+            current_gravity_blend = math.min(1.0, current_gravity_blend + dt * 1.0) -- Gravity returns
+        end
+
+        -- Explosions
+        if love.mouse.isDown(1) then
+            local ex, ey, ez = 0, 5000, 0
+            VibeMath.simd_apply_explosion(PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, ex, ey, ez, 5000000.0 * dt, 15000.0)
+        end
+        if love.mouse.isDown(2) then
+            local ex, ey, ez = 0, 5000, 0
+            VibeMath.simd_apply_explosion(PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, ex, ey, ez, -4000000.0 * dt, 20000.0)
+        end
+
+        -- 3. KERNEL DISPATCH (Zero crust. We run both kernels scaled by their blend weight)
+        if current_gravity_blend > 0.0 then
+            -- Fall back to floor
+            local cage = UniverseCage
+            VibeMath.simd_update_physics_swarm(
+                PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz,
+                cage.minX, cage.maxX, cage.minY, cage.maxY, cage.minZ, cage.maxZ,
+                dt, -8000.0 * current_gravity_blend
+            )
+        end
+
+        if current_gravity_blend < 1.0 then
+            -- Assemble into Living Metal
+            VibeMath.simd_update_swarm_living_metal(
+                PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, p_seed,
+                0, 5000, 0, time_alive, dt, current_metal_blend
+            )
+        end
+
+        -- 4. Final Geometry Generation
+        local vStart = Obj_VertStart[swarm_obj_id]
+        VibeMath.generate_swarm_geometry(
+            PCOUNT, p_px, p_py, p_pz,
+            Vert_LX + vStart, Vert_LY + vStart, Vert_LZ + vStart,
+            120.0
+        )
+    end
+function Swarm.OLD_Tick(dt)
         time_alive = time_alive + dt
 
         -- Shape State Machine
