@@ -25,8 +25,8 @@ return function(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Ob
     local gravity_blend = 1.0
     local metal_blend = 0.0
     local paradox_blend = 0.0
-
-    local time_alive = 0.0
+    -- scene_manager takeover
+    -- local time_alive = 0.0
     local space_pressed_last = false
 
     -- Dedicated Physics Arrays
@@ -70,8 +70,8 @@ return function(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Ob
 
         local tIdx = tStart
         local col1 = bit.bor(0xFF000000, bit.lshift(255, 16), 0, 0)
-        local col2 = bit.bor(0xFF000000, 0, bit.lshift(255, 8), 0) 
-        local col3 = bit.bor(0xFF000000, 0, 0, 255)                 
+        local col2 = bit.bor(0xFF000000, 0, bit.lshift(255, 8), 0)
+        local col3 = bit.bor(0xFF000000, 0, 0, 255)
         local col4 = bit.bor(0xFF000000, 0, bit.lshift(255, 8), 255)
 
         for i = 0, PCOUNT - 1 do
@@ -87,8 +87,9 @@ return function(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Ob
         end
     end
 
-    function Swarm.Tick(dt)
-        time_alive = time_alive + dt
+    function Swarm.Tick(dt, current_time)
+        -- scene_manager takeover
+        --time_alive = time_alive + dt
 
         -- 1. Spacebar State Cycler (0 through 6)
         local space_down = love.keyboard.isDown("space")
@@ -134,17 +135,17 @@ return function(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Ob
             if target_state >= 1 and target_state <= 4 then
                 VibeMath.simd_update_swarm_attractors(
                     PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, p_seed,
-                    0, 5000, 0, time_alive, dt, target_state
+                    0, 5000, 0, current_time, dt, target_state
                 )
             elseif target_state == 5 then
                 VibeMath.simd_update_swarm_living_metal(
                     PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, p_seed,
-                    0, 5000, 0, time_alive, dt, metal_blend
+                    0, 5000, 0, current_time, dt, metal_blend
                 )
             elseif target_state == 6 then
                 VibeMath.simd_update_swarm_paradox(
                     PCOUNT, p_px, p_py, p_pz, p_vx, p_vy, p_vz, p_seed,
-                    0, 5000, 0, time_alive, dt, paradox_blend
+                    0, 5000, 0, current_time, dt, paradox_blend
                 )
             end
         end

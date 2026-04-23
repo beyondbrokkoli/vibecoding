@@ -13,8 +13,9 @@ return function(
 )
     local Paradox = {}
     local my_obj_start
-    local time_alive = 0
-    
+    -- scene_manager takeover
+    -- local time_alive = 0
+
     -- Local variables for rotation so we don't need FFI arrays!
     local sphere_yaw = 0
     local sphere_pitch = 0
@@ -69,7 +70,8 @@ return function(
     end
 
     function Paradox.Tick(dt)
-        time_alive = time_alive + dt
+        -- scene_manager takeover
+        -- time_alive = time_alive + dt
         local id = my_obj_start
 
         -- Apply local rotation
@@ -95,7 +97,7 @@ return function(
         VibeMath.generate_living_metal_vertices(
             Vert_LX + vStart, Vert_LY + vStart, Vert_LZ + vStart,
             LATITUDES, LONGITUDES,
-            r_base, time_alive
+            r_base, current_time
         )
     end
 
