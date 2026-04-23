@@ -667,3 +667,156 @@ EXPORT void rasterize_triangles_batch(
         }
     }
 }
+// ========================================================================
+// THE MEGA-SWARM PHYSICS & INSTANCING KERNELS
+// ========================================================================
+
+EXPORT void simd_update_physics_swarm(
+    int count,
+    float* px, float* py, float* pz,
+    float* vx, float* vy, float* vz,
+    float minX, float maxX,
+    float minY, float maxY,
+    float minZ, float maxZ,
+    float dt, float gravity
+) {
+    for (int i = 0; i < count; i++) {
+        // Apply Gravity & Slight Drag (Terminal Velocity protection)
+        vy[i] -= gravity * dt;
+        vx[i] *= 0.995f; 
+        vy[i] *= 0.995f; 
+        vz[i] *= 0.995f;
+
+        // Integrate Position
+        px[i] += vx[i] * dt;
+        py[i] += vy[i] * dt;
+        pz[i] += vz[i] * dt;
+
+        // Universe Cage Bounce Logic (80% Restitution)
+        if (px[i] < minX) { px[i] = minX; vx[i] = fabsf(vx[i]) * 0.8f; }
+        if (px[i] > maxX) { px[i] = maxX; vx[i] = -fabsf(vx[i]) * 0.8f; }
+        
+        if (py[i] < minY) { py[i] = minY; vy[i] = fabsf(vy[i]) * 0.8f; }
+        if (py[i] > maxY) { py[i] = maxY; vy[i] = -fabsf(vy[i]) * 0.8f; }
+        
+        if (pz[i] < minZ) { pz[i] = minZ; vz[i] = fabsf(vz[i]) * 0.8f; }
+        if (pz[i] > maxZ) { pz[i] = maxZ; vz[i] = -fabsf(vz[i]) * 0.8f; }
+    }
+}
+
+// User Interactivity: Click to shoot an explosion blast
+EXPORT void simd_apply_explosion(
+    int count,
+    float* px, float* py, float* pz,
+    float* vx, float* vy, float* vz,
+    float ex, float ey, float ez,
+    float force, float radius
+) {
+    float r2 = radius * radius;
+    for (int i = 0; i < count; i++) {
+        float dx = px[i] - ex;
+        float dy = py[i] - ey;
+        float dz = pz[i] - ez;
+        float dist2 = dx*dx + dy*dy + dz*dz;
+        
+        if (dist2 < r2 && dist2 > 1.0f) {
+            float dist = sqrtf(dist2);
+            float f = force * (1.0f - (dist / radius)); // Linear falloff
+            vx[i] += (dx / dist) * f;
+            vy[i] += (dy / dist) * f;
+            vz[i] += (dz / dist) * f;
+        }
+    }
+}
+
+// Procedurally blasts 40,000 vertices directly into the local geometry buffer
+EXPORT void generate_swarm_geometry(
+    int count,
+    float* px, float* py, float* pz,
+    float* lx, float* ly, float* lz,
+    float size
+) {
+    int v_idx = 0;
+    for(int i = 0; i < count; i++) {
+        float cx = px[i], cy = py[i], cz = pz[i];
+        
+        // V0: Top Point
+        lx[v_idx] = cx; ly[v_idx] = cy + size; lz[v_idx] = cz; v_idx++;
+        // V1: Bottom Left Front
+        lx[v_idx] = cx - size; ly[v_idx] = cy - size; lz[v_idx] = cz + size; v_idx++;
+        // V2: Bottom Right Front
+        lx[v_idx] = cx + size; ly[v_idx] = cy - size; lz[v_idx] = cz + size; v_idx++;
+        // V3: Bottom Back
+        lx[v_idx] = cx; ly[v_idx] = cy - size; lz[v_idx] = cz - size; v_idx++;
+    }
+}
+EXPORT void simd_update_swarm_attractors(
+    int count,
+    float* px, float* py, float* pz,
+    float* vx, float* vy, float* vz,
+    float* seed, // A precalculated 0.0 to 1.0 float for each particle
+    float cx, float cy, float cz, // Center of the room
+    float time, float dt,
+    int shape_mode 
+) {
+    for (int i = 0; i < count; i++) {
+        float s = seed[i];
+        float tx = cx, ty = cy, tz = cz;
+        
+        if (shape_mode == 1) { 
+            // 1. THE BUNDLE (Fibonacci Sphere - Perfect mathematical distribution)
+            float phi = (float)i * 2.39996323f; // Golden Angle
+            float theta = acosf(1.0f - 2.0f * s);
+            float r = 2000.0f + 400.0f * sinf(time * 6.0f); // Breathing core
+            tx = cx + r * sinf(theta) * cosf(phi);
+            ty = cy + r * cosf(theta);
+            tz = cz + r * sinf(theta) * sinf(phi);
+            
+        } else if (shape_mode == 2) { 
+            // 2. THE GALAXY (A massive spinning wavy disc)
+            float angle = s * 3.14159f * 30.0f + time * 1.5f; 
+            float r = 1000.0f + s * 14000.0f; // Spiral outwards
+            tx = cx + r * cosf(angle);
+            ty = cy + 800.0f * sinf(s * 40.0f - time * 3.0f); // Wavy Z-axis flutter
+            tz = cz + r * sinf(angle);
+            
+        } else if (shape_mode == 3) { 
+            // 3. THE TORNADO (Double Helix ascending)
+            float height = s * 24000.0f - 12000.0f; // Bottom to top
+            float angle = s * 3.14159f * 30.0f - time * 4.0f;
+            float r = 2000.0f + (s * 4000.0f); // Gets wider at the top
+            tx = cx + r * cosf(angle);
+            ty = cy + height;
+            tz = cz + r * sinf(angle);
+            
+        } else if (shape_mode == 4) { 
+            // 4. THE GYROSCOPE (3 Interlocking Rotating Rings)
+            int ring = i % 3; // Divide particles into 3 groups
+            float angle = s * 3.14159f * 2.0f + time * 2.5f;
+            float r = 7000.0f;
+            if (ring == 0) { tx = cx + r*cosf(angle); ty = cy + r*sinf(angle); tz = cz; }
+            else if (ring == 1) { tx = cx + r*cosf(angle); ty = cy; tz = cz + r*sinf(angle); }
+            else { tx = cx; ty = cy + r*cosf(angle); tz = cz + r*sinf(angle); }
+        }
+
+        // SPRING PHYSICS (Steering towards target)
+        float dx = tx - px[i];
+        float dy = ty - py[i];
+        float dz = tz - pz[i];
+        
+        float k = 4.0f; // Spring stiffness (Higher = snaps faster)
+        vx[i] += dx * k * dt;
+        vy[i] += dy * k * dt;
+        vz[i] += dz * k * dt;
+        
+        // DAMPING (Friction so they settle into the shape instead of orbiting forever)
+        vx[i] *= 0.92f;
+        vy[i] *= 0.92f;
+        vz[i] *= 0.92f;
+
+        // INTEGRATE
+        px[i] += vx[i] * dt;
+        py[i] += vy[i] * dt;
+        pz[i] += vz[i] * dt;
+    }
+}

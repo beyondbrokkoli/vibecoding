@@ -86,17 +86,17 @@ end
 
 local process_manifest = {
     ["memory.lua"] = "BUILD/memory.lua",
-    ["sequence.lua"] = "BUILD/sequence.lua",
+--    ["sequence.lua"] = "BUILD/sequence.lua",
     ["main.lua"] = "BUILD/main.lua",
-    ["render_twotone.lua"] = "BUILD/render_twotone.lua",
-    ["load.lua"] = "BUILD/load.lua",
-    ["smales_paradox.lua"] = "BUILD/modules/smales_paradox.lua",
+    ["render.lua"] = "BUILD/render.lua",
+--    ["load.lua"] = "BUILD/load.lua",
+--    ["smales_paradox.lua"] = "BUILD/modules/smales_paradox.lua",
     ["modules/camera.lua"] = "BUILD/modules/camera.lua",
-    ["conf.lua"] = "BUILD/conf.lua",
-    ["physics.lua"] = "BUILD/physics.lua",
+--    ["conf.lua"] = "BUILD/conf.lua",
+--    ["physics.lua"] = "BUILD/physics.lua",
     ["camera.lua"] = "BUILD/camera.lua",
-    ["build_orchestrator.lua"] = "BUILD/built_orchestrator.lua",
-    ["bench.lua"] = "BUILD/bench.lua",
+--    ["build_orchestrator.lua"] = "BUILD/built_orchestrator.lua",
+--    ["bench.lua"] = "BUILD/bench.lua",
 }
 
 local raw_manifest = {} -- now empty because we broke free from json chains

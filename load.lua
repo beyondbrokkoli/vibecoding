@@ -109,6 +109,37 @@ ffi.cdef[[
         int latitudes, int longitudes,
         float base_radius, float time_alive
     );
+    void simd_update_physics_swarm(
+        int count,
+        float* px, float* py, float* pz,
+        float* vx, float* vy, float* vz,
+        float minX, float maxX, float minY, float maxY, float minZ, float maxZ,
+        float dt, float gravity
+    );
+
+    void simd_apply_explosion(
+        int count,
+        float* px, float* py, float* pz,
+        float* vx, float* vy, float* vz,
+        float ex, float ey, float ez,
+        float force, float radius
+    );
+
+    void generate_swarm_geometry(
+        int count,
+        float* px, float* py, float* pz,
+        float* lx, float* ly, float* lz,
+        float size
+    );
+    void simd_update_swarm_attractors(
+        int count,
+        float* px, float* py, float* pz,
+        float* vx, float* vy, float* vz,
+        float* seed,
+        float cx, float cy, float cz,
+        float time, float dt,
+        int shape_mode
+    );
 ]]
 -- Execute and return the loaded library
 return load_simd_library()
