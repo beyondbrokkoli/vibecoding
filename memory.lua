@@ -145,5 +145,12 @@ function Memory.ClaimBoundBoxes(count)
     if next_box_id > MAX_BOUND_BOXES then error("FATAL: Out of Bounding Box Memory!") end
     return start_id, next_box_id - 1
 end
-
+function Memory.Reset()
+    next_obj_id = 0
+    next_vert_id = 0
+    next_tri_id = 0
+    next_sphere_id = 0
+    next_box_id = 0
+    print("[MEMORY] FFI Allocator Indices Reset to Zero.")
+end
 return Memory

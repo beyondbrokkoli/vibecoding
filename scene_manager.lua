@@ -31,17 +31,18 @@ return function(...)
             active_index = active_index + 1
             if active_index > #scenes then active_index = 1 end
 
-            -- 3. LOAD THE NEW (SHARP CUT)
+            -- 3. RESET MEMORY ALLOCATOR [NEW]
+            -- injected_args[1] is the Memory module!
+            injected_args[1].Reset()
+
+            -- 4. LOAD THE NEW (SHARP CUT)
             local mod = Sequence.LoadModule(scenes[active_index], unpack(injected_args))
             
-            -- Because Sequence.RunPhase("Init") only happens once at boot in main.lua, 
-            -- we must manually call Init() on the newly loaded scene to claim geometry.
             if mod and mod.Init then mod.Init() end
         end
         
         enter_pressed_last = enter_down
     end
-
     -- Notice there is no Manager.Raster() anymore!
     -- Sequence.lua handles Raster automatically now because the active scene 
     -- injected its own Raster function directly into the Sequence.Phases.Raster table!
