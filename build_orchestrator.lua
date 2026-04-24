@@ -7,7 +7,7 @@ local function compile_simd_libraries()
     -- LEGACY BASELINE (Strictly generic x86-64, no AVX)
     -- local linux_cmd_legacy = "gcc -O3 -march=x86-64 -shared -fPIC vibemath_legacy.c -o libvibemath_legacy.so"
 
-    print("  |- Building Linux shared objects (AVX2 & Legacy)...")
+    print("  |- Building Linux shared objects ...")
     os.execute(linux_cmd)
     -- os.execute(linux_cmd_legacy)
 
@@ -17,7 +17,7 @@ local function compile_simd_libraries()
     -- LEGACY BASELINE (Strictly generic x86-64, no AVX)
     -- local win_cmd_b = "x86_64-w64-mingw32-gcc -O3 -march=x86-64 -shared -fPIC vibemath_legacy.c -o vibemath_legacy.dll"
 
-    print("  |- Cross-compiling Windows DLLs (AVX2 & Legacy)...")
+    print("  |- Cross-compiling Windows DLLs ...")
     os.execute(win_cmd)
     -- os.execute(win_cmd_b)
 end
