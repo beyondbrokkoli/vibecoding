@@ -9,6 +9,7 @@ local ZBuffer
 
 require("bench") -- Load the global BENCH suite
 local print_timer = 0
+local global_time = 0
 
 function love.load()
     CANVAS_W, CANVAS_H = love.graphics.getPixelDimensions()
@@ -22,15 +23,7 @@ function love.load()
     -- 1. The Camera
     Sequence.LoadModule("camera", MainCamera)
 
-    --Sequence.LoadModule("swarm",
-        --Memory, MainCamera,
-        --Obj_X, Obj_Y, Obj_Z, Obj_Radius,
-        --Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
-        --Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount,
-        --Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid,
-        --Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor,
-        --Tri_Valid, Tri_ShadedColor -- <--- ADD THESE TWO!
-    --)
+    -- 2. The DJ (Scene Manager) - Injecting the entire FFI memory block
     Sequence.LoadModule("scene_manager",
         Memory, MainCamera,
         Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ,
@@ -38,14 +31,16 @@ function love.load()
         Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid,
         Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor, Tri_Valid, Tri_ShadedColor
     )
+
     Sequence.RunPhase("Init")
 end
 
-
-
 function love.update(dt)
     dt = math.min(dt, 0.033)
-    Sequence.RunPhase("Tick", dt)
+    global_time = global_time + dt -- <--- 2. Accumulate global time
+
+    -- 3. Broadcast BOTH dt and global_time to all active modules!
+    Sequence.RunPhase("Tick", dt, global_time)
 
     -- Accumulate time for our sparse benchmark printing
     print_timer = print_timer + dt
@@ -56,7 +51,8 @@ function love.draw()
     -- 99999.0 = A massive float to reset the Depth Buffer
     -- CANVAS_W * CANVAS_H = Total number of pixels
     VibeMath.simd_clear_buffers(ScreenPtr, ZBuffer, 0xFF000000, 99999.0, CANVAS_W * CANVAS_H)
-    Sequence.RunPhase("Cull", MainCamera)
+    
+    -- [GHOST BANISHED] No more Lua Cull phase! Straight to SIMD Rasterization.
 
     -- THE BENCHMARK WRAPPER
     BENCH.Begin("Rasterizer")
@@ -70,6 +66,7 @@ function love.draw()
     love.graphics.setBlendMode("alpha")
     love.graphics.setColor(0, 1, 0.5, 1)
     love.graphics.print(love.timer.getFPS())
+    
     -- SPARSE TERMINAL OUTPUT (Every 2 seconds)
     if print_timer >= 2.0 then
         BENCH.PrintAndReset("Rasterizer")
@@ -78,12 +75,12 @@ function love.draw()
 end
 
 function love.keypressed(key)
-    if key == "escape" then 
+    if key == "escape" then
         -- If mouse is locked, unlock it. Otherwise, quit the game.
         if love.mouse.getRelativeMode() then
             love.mouse.setRelativeMode(false)
         else
-            love.event.quit() 
+            love.event.quit()
         end
     end
     if key == "tab" then

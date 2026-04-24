@@ -1,62 +1,50 @@
-local SwarmFactory = require("swarm")
-local MetalFactory = require("metal")
-local BubbleFactory = require("bubble")
-local SmalesFactory = require("smales_paradox")
+local Sequence = require("sequence")
 
-return function(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ, Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount, Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid, Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor, Tri_Valid, Tri_ShadedColor)
-
+return function(...)
     local Manager = {}
     
-    local swarm_scene = SwarmFactory(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ, Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount, Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid, Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor, Tri_Valid, Tri_ShadedColor)
-    local metal_scene = MetalFactory(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ, Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount, Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid, Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor, Tri_Valid, Tri_ShadedColor)
-    local bubble_scene = BubbleFactory(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ, Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount, Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid, Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor, Tri_Valid, Tri_ShadedColor)
-    local smales_scene = SmalesFactory(Memory, MainCamera, Obj_X, Obj_Y, Obj_Z, Obj_Radius, Obj_FWX, Obj_FWY, Obj_FWZ, Obj_RTX, Obj_RTY, Obj_RTZ, Obj_UPX, Obj_UPY, Obj_UPZ, Obj_VertStart, Obj_VertCount, Obj_TriStart, Obj_TriCount, Vert_LX, Vert_LY, Vert_LZ, Vert_PX, Vert_PY, Vert_PZ, Vert_Valid, Tri_V1, Tri_V2, Tri_V3, Tri_BakedColor, Tri_Valid, Tri_ShadedColor)
+    -- Pack all the FFI pointers (Memory, Camera, Obj_X, etc.) into an array
+    local injected_args = {...} 
 
-    local shared_time_alive = 0.0
-    local active_scene = 0 -- 0 = Swarm, 1 = Metal, 2 = Bubble
+    local scenes = {"swarm", "metal", "bubble", "smales_paradox"}
+    local active_index = 1
     local enter_pressed_last = false
 
+    -- Since scenes don't keep their own time anymore, we pass a global time
+    local shared_time_alive = 0.0 
+
     function Manager.Init()
-        swarm_scene.Init()
-        metal_scene.Init()
-        bubble_scene.Init()
-        smales_scene.Init()
+        -- Load the very first scene using unpack() to dump all 32 arguments perfectly
+        local mod = Sequence.LoadModule(scenes[active_index], unpack(injected_args))
+        if mod and mod.Init then mod.Init() end
     end
 
     function Manager.Tick(dt)
         shared_time_alive = shared_time_alive + dt
 
-        -- Scene Cycler
         local enter_down = love.keyboard.isDown("return")
         if enter_down and not enter_pressed_last then
-            active_scene = active_scene + 1
-            if active_scene > 3 then active_scene = 0 end
+            -- 1. UNLOAD THE OLD
+            Sequence.UnloadModule(scenes[active_index])
+
+            -- 2. INCREMENT
+            active_index = active_index + 1
+            if active_index > #scenes then active_index = 1 end
+
+            -- 3. LOAD THE NEW (SHARP CUT)
+            local mod = Sequence.LoadModule(scenes[active_index], unpack(injected_args))
+            
+            -- Because Sequence.RunPhase("Init") only happens once at boot in main.lua, 
+            -- we must manually call Init() on the newly loaded scene to claim geometry.
+            if mod and mod.Init then mod.Init() end
         end
+        
         enter_pressed_last = enter_down
-
-        -- Dispatch
-        if active_scene == 0 then
-            swarm_scene.Tick(dt, shared_time_alive)
-        elseif active_scene == 1 then
-            metal_scene.Tick(dt, shared_time_alive)
-        elseif active_scene == 2 then
-            bubble_scene.Tick(dt, shared_time_alive)
-        elseif active_scene == 3 then
-            smales_scene.Tick(dt, shared_time_alive)
-        end
     end
 
-    function Manager.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
-        if active_scene == 0 then
-            swarm_scene.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
-        elseif active_scene == 1 then
-            metal_scene.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
-        elseif active_scene == 2 then
-            bubble_scene.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
-        elseif active_scene == 3 then
-            smales_scene.Raster(CANVAS_W, CANVAS_H, ScreenPtr, ZBuffer)
-        end
-    end
+    -- Notice there is no Manager.Raster() anymore!
+    -- Sequence.lua handles Raster automatically now because the active scene 
+    -- injected its own Raster function directly into the Sequence.Phases.Raster table!
 
     return Manager
 end
